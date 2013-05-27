@@ -407,11 +407,13 @@
     <ClCompile Include="DXUT\Optional\DXUTsettingsdlg.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmesh.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
+    <None Include="Media\Shaders\DeferredRendering.hlsl" />
     <None Include="Media\Shaders\FullScreenTriangle.hlsl" />
     <None Include="Media\Shaders\GBuffer.hlsl" />
     <None Include="Media\Shaders\PerFrameConstants.hlsl" />
     <None Include="Media\Shaders\Rendering.hlsl" />
     <None Include="Media\Shaders\SSAO.hlsl" />
+    <None Include="Media\Shaders\Utility.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />

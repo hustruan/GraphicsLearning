@@ -33,6 +33,8 @@ public:
 private:
 	void RenderGBuffer(ID3D11DeviceContext* d3dDeviceContext, CDXUTSDKMesh& sceneMesh, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
+	void ComputerLighting(ID3D11DeviceContext* d3dDeviceContext, const D3D11_VIEWPORT* viewport);
+
 	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 	
 private:
