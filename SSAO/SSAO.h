@@ -37,7 +37,11 @@ public:
 private:
 	void RenderGBuffer(ID3D11DeviceContext* d3dDeviceContext, CDXUTSDKMesh& sceneMesh, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
+<<<<<<< HEAD
 	void ComputeShading(ID3D11DeviceContext* d3dDeviceContext,  const D3D11_VIEWPORT* viewport);
+=======
+	void ComputerLighting(ID3D11DeviceContext* d3dDeviceContext, const D3D11_VIEWPORT* viewport);
+>>>>>>> 970a76a49a863f3140fa6fbf7a0add78fe1b2b14
 
 	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 

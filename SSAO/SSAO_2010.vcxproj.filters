@@ -91,6 +91,12 @@
     <None Include="Media\Shaders\PerFrameConstants.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Media\Shaders\DeferredRendering.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\Utility.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
