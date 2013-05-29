@@ -26,6 +26,41 @@ struct SSAOParams
 };
 
 
+namespace {
+
+void ComputeFrustumExtents(const D3DXMATRIXA16& matViewProj, D3DXVECTOR3* pOut)
+{
+	const int CornerCount = 8;
+	const int PlaneCount = 6;
+
+	D3DXPLANE planes[PlaneCount];
+	planes[0] = D3DXPLANE(-matViewProj._13, -matViewProj._23, -matViewProj._33, -matViewProj._43);
+	planes[1] = D3DXPLANE(matViewProj._13 - matViewProj._14, matViewProj._23 - matViewProj._24, matViewProj._33 - matViewProj._34, matViewProj._43 - matViewProj._44);
+	planes[2] = D3DXPLANE(-matViewProj._14 - matViewProj._11, -matViewProj._24 - matViewProj._21, -matViewProj._34 - matViewProj._31, -matViewProj._44 - matViewProj._41);
+	planes[3] = D3DXPLANE(matViewProj._11 - matViewProj._14, matViewProj._21 - matViewProj._24, matViewProj._31 - matViewProj._34, matViewProj._41 - matViewProj._44);
+	planes[4] = D3DXPLANE(matViewProj._12 - matViewProj._14, matViewProj._22 - matViewProj._24, matViewProj._32 - matViewProj._34, matViewProj._42 - matViewProj._44);
+	planes[5] = D3DXPLANE(-matViewProj._14 - matViewProj._12, -matViewProj._24 - matViewProj._22, -matViewProj._34 - matViewProj._32, -matViewProj._44 - matViewProj._42);
+
+	for(int i = 0; i < PlaneCount; ++i)
+		D3DXPlaneNormalize(&planes[i], &planes[i]);
+
+	D3DXVECTOR3 corners[CornerCount];
+	IntersectionPoint(ref this.planes[0], ref this.planes[2], ref this.planes[4], out this.corners[0]);
+	IntersectionPoint(ref this.planes[0], ref this.planes[3], ref this.planes[4], out this.corners[1]);
+	IntersectionPoint(ref this.planes[0], ref this.planes[3], ref this.planes[5], out this.corners[2]);
+	IntersectionPoint(ref this.planes[0], ref this.planes[2], ref this.planes[5], out this.corners[3]);
+	IntersectionPoint(ref this.planes[1], ref this.planes[2], ref this.planes[4], out this.corners[4]);
+	IntersectionPoint(ref this.planes[1], ref this.planes[3], ref this.planes[4], out this.corners[5]);
+	IntersectionPoint(ref this.planes[1], ref this.planes[3], ref this.planes[5], out this.corners[6]);
+	IntersectionPoint(ref this.planes[1], ref this.planes[2], ref this.planes[5], out this.corners[7]);
+}
+
+
+
+}
+
+
+
 SSAO::SSAO( ID3D11Device* d3dDevice )
 {
 	mGeometryVS = std::make_shared<VertexShader>(d3dDevice, L"./Media/Shaders/Rendering.hlsl", "GeometryVS", nullptr);
@@ -165,6 +200,8 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		CD3D11_BUFFER_DESC desc(sizeof(SSAOParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 		d3dDevice->CreateBuffer(&desc, nullptr, &mAOParamsConstants);
 	}
+
+	
 }
 
 
@@ -180,6 +217,7 @@ SSAO::~SSAO(void)
 	SAFE_RELEASE(mNoiseSampler);
 	SAFE_RELEASE(mNoiseSRV);
 	SAFE_RELEASE(mAOParamsConstants);
+	SAFE_RELEASE(mDepthBufferReadOnlyDSV);
 	
 }
 
@@ -188,11 +226,24 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 	mGBufferWidth = backBufferDesc->Width;
 	mGBufferHeight = backBufferDesc->Height;
 
-
-	mGBuffer.clear();
+	// lit buffers
+	mLitBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
+		DXGI_FORMAT_R32G32B32A32_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 
 	mDepthBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
 		DXGI_FORMAT_R32_TYPELESS, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL);
+
+	// read-only depth stencil view
+	{
+		D3D11_DEPTH_STENCIL_VIEW_DESC desc;
+		mDepthBuffer->GetDepthStencilView()->GetDesc(&desc);
+		desc.Flags = D3D11_DSV_READ_ONLY_DEPTH;
+
+		d3dDevice->CreateDepthStencilView(mDepthBuffer->GetTexture(), &desc, &mDepthBufferReadOnlyDSV);
+	}
+
+	// Create GBuffer
+	mGBuffer.clear();
 
 	// normals and depth
 	mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
@@ -203,12 +254,15 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 		DXGI_FORMAT_R8G8B8A8_UNORM, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
 
 	mGBufferRTV.resize(mGBuffer.size());
-	for (size_t i = 0; i < mGBufferRTV.size(); ++i)
+	mGBufferSRV.resize(mGBuffer.size() + 1);
+	for (size_t i = 0; i < mGBuffer.size(); ++i)
+	{
 		mGBufferRTV[i] = mGBuffer[i]->GetRenderTargetView();
-	
-	mGBufferSRV.resize(mGBuffer.size());
-	for (size_t i = 0; i < mGBufferSRV.size(); ++i)
 		mGBufferSRV[i] = mGBuffer[i]->GetShaderResourceView();
+	}
+
+	// Depth buffer is the last SRV that we use for reading
+	mGBufferSRV.back() = mDepthBuffer->GetShaderResourceView();
 }
 
 void SSAO::Render( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth, CDXUTSDKMesh& sceneMesh, const D3DXMATRIX& worldMatrix, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
@@ -241,7 +295,7 @@ void SSAO::Render( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView
 		d3dDeviceContext->Map(mAOParamsConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 		SSAOParams* constants = static_cast<SSAOParams *>(mappedResource.pData);
 
-		constants->ViewParams = D3DXVECTOR4(mGBufferWidth, mGBufferHeight, viewerCamera.GetNearClip(), viewerCamera.GetFarClip() );
+		constants->ViewParams = D3DXVECTOR4((float)mGBufferWidth, (float)mGBufferHeight, viewerCamera.GetNearClip(), viewerCamera.GetFarClip() );
 		constants->AOParams = D3DXVECTOR4( 0.5f, 0.5f, 3.0f, 200.0f );	
 
 		d3dDeviceContext->Unmap(mAOParamsConstants, 0);
@@ -304,7 +358,6 @@ void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, CDXUTSDKMesh& s
 	d3dDeviceContext->OMSetDepthStencilState(mDepthState, 0);
 	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
 	
-
 	sceneMesh.Render(d3dDeviceContext, 0);
 }
 
@@ -334,5 +387,32 @@ void SSAO::RenderSSAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 
     d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
 
+	d3dDeviceContext->Draw(3, 0);
+}
+
+void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const D3D11_VIEWPORT* viewport )
+{
+	const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
+	d3dDeviceContext->ClearRenderTargetView(mLitBuffer->GetRenderTargetView(), zeros);
+
+	// Full screen triangle setup
+	d3dDeviceContext->IASetInputLayout(0);
+	d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
+
+	d3dDeviceContext->VSSetShader(mFullScreenTriangleVS->GetShader(), 0, 0);
+
+	d3dDeviceContext->RSSetState(mRasterizerState);
+	d3dDeviceContext->RSSetViewports(1, viewport);
+
+	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
+	d3dDeviceContext->PSSetShaderResources(0, mGBufferSRV.size(), &mGBufferSRV.front());
+	//d3dDeviceContext->PSSetShader()
+
+
+	ID3D11RenderTargetView * renderTargets[1] = { mLitBuffer->GetRenderTargetView() };
+	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, mDepthBufferReadOnlyDSV);
+	d3dDeviceContext->OMSetDepthStencilState(mDepthState, 0);
+	
 	d3dDeviceContext->Draw(3, 0);
 }

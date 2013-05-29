@@ -17,7 +17,6 @@ public:
 
 	~Texture2D(void);
 
-
 	ID3D11Texture2D* GetTexture() const { return mTexture; }
 	ID3D11RenderTargetView* GetRenderTargetView() const { assert(mRenderTargetView); return mRenderTargetView; }
 	ID3D11DepthStencilView* GetDepthStencilView() const { assert(mDepthStecilView); return mDepthStecilView; }

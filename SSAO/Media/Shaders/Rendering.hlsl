@@ -65,5 +65,23 @@ float4 BasicPS(GeometryVSOut input) : SV_Target0
 }
 
 
+//-----------------------------------------------------------------------------
+struct CombineVSOut
+{
+	float3 oPos     : POSITION;
+	float3 oPosView : TEXCOORD0;
+};
+
+CombineVSOut CombineShading(in iPos : POSITION)
+{
+	CombineVSOut output;
+
+#if PointLight || SpotLight
+	output.oPos = mul(float4(input.iPos, 1.0f), WorldViewProj);
+#else
+	output.oPos = 
+
+}
+
 
 #endif

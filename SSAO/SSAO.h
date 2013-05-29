@@ -9,13 +9,17 @@
 
 using std::shared_ptr;
 
+template<typename T> class Shader;
+
 class CDXUTSDKMesh;
 class CFirstPersonCamera;
 class Texture2D;
 
 
-template<typename T>
-class Shader;
+struct Light
+{
+
+};
 
 class SSAO
 {
@@ -28,13 +32,15 @@ public:
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
 
 	void Render(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
-		CDXUTSDKMesh& sceneMesh, const D3DXMATRIX& worldMatrix, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport );
+		CDXUTSDKMesh& sceneMesh, const D3DXMATRIX& worldMatrix, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 private:
 	void RenderGBuffer(ID3D11DeviceContext* d3dDeviceContext, CDXUTSDKMesh& sceneMesh, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
+	void ComputeShading(ID3D11DeviceContext* d3dDeviceContext,  const D3D11_VIEWPORT* viewport);
+
 	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
-	
+
 private:
 
 	UINT mGBufferWidth, mGBufferHeight; 
@@ -45,6 +51,7 @@ private:
 	ID3D11Buffer* mAOParamsConstants;
 
 	shared_ptr<Texture2D> mDepthBuffer;
+	ID3D11DepthStencilView* mDepthBufferReadOnlyDSV;
 
 	// GBuffer Shaders
 	shared_ptr<VertexShader> mGeometryVS;
@@ -53,6 +60,9 @@ private:
 	std::vector<shared_ptr<Texture2D>> mGBuffer;
 	std::vector<ID3D11RenderTargetView*> mGBufferRTV;
 	std::vector<ID3D11ShaderResourceView*> mGBufferSRV;
+
+	// Deferred Shading Lit Buffer
+	shared_ptr<Texture2D> mLitBuffer;
 
 	// SSAO Shaders
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
