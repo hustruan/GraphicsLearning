@@ -17,6 +17,23 @@ Texture2D NormalTex : register(t0);
 Texture2D AlbedoTex : register(t1);
 Texture2D DepthTex : register(t3);
 
+
+void AccumulatePhongBRDF(float3 normal, float3 lightDir, float3 viewDir, float3 lightIntensity, float specularPower, 
+                    inout float3 litDiffuse, inout float3 litSpecular)
+{
+	float NdotL = dot(normal, lightDir);
+
+	if(NdotL > 0.0f)
+	{
+		float3 r = reflect(lightDir, normal);
+		float RdotV = max(0.0f, dot(r, viewDir));
+
+		litDiffuse += lightIntensity * NdotL;
+		litSpecular += lightIntensity * pow(RdotV, specularPower);;
+	}
+}
+
+
 void DeferredRenderingVS(in  float3 iPos     : POSITION,
                          out float4 oPos     : SV_Position,
 						 out float2 oTex     : TEXCOORD0
@@ -82,3 +99,27 @@ void DeferredRenderingDirectionalPS£¨in float2 oTex : TEXCOORD0, in float3 oView
 
 
 #endif
+
+// Version 1
+void NonLinearDepthVS(in float3 iPos : POSITION, out float4 oPos : SV_Position, out float oDepth : TEXCOORD0)
+{
+	oPos = mul(iPos, mul(World, ViewProj)); 
+    oDepth = oPos.z / oPos.w;    
+}
+
+float4 NonLinearDepthPS(in float oDepth : TEXCOORD0) : SV_Target0
+{
+	return float4(oDepth, 0, 0, 0);
+}
+
+// Version 2
+void NonLinearDepthVS(in float3 iPos : POSITION, out float4 oPos : SV_Position, out float2 oDepth : TEXCOORD0)
+{
+	oPos = mul(iPos, mul(World, ViewProj)); 
+    oDepth = oPos.zw;
+}
+
+float4 NonLinearDepthPS(in float2 oDepth : TEXCOORD0) : SV_Target0
+{
+	return float4(oDepth.x / oDepth.y, 0, 0, 0);
+}
