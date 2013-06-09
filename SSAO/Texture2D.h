@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d11.h>
+#include <d3dx11tex.h>
 
 class Texture2D
 {
@@ -21,6 +22,8 @@ public:
 	ID3D11RenderTargetView* GetRenderTargetView() const { assert(mRenderTargetView); return mRenderTargetView; }
 	ID3D11DepthStencilView* GetDepthStencilView() const { assert(mDepthStecilView); return mDepthStecilView; }
 	ID3D11ShaderResourceView* GetShaderResourceView() { assert(mShaderResourceView); return mShaderResourceView; }
+
+	void SaveTextureToFile(ID3D11DeviceContext *pContext, D3DX11_IMAGE_FILE_FORMAT fmt, LPCTSTR pDestFile);
 
 private:
 	// Not implemented
