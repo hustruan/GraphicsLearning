@@ -245,11 +245,18 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 
 	// Load light volume mesh 
 	{
+		HRESULT hr;
+
 		mPointLightProxy = new CDXUTSDKMesh;
-		assert( SUCCEEDED(mPointLightProxy->Create( d3dDevice, L".\\Media\\PointLightProxy.sdkmesh") ));
-		
 		mSpotLightProxy = new CDXUTSDKMesh;
-		assert( SUCCEEDED(mSpotLightProxy->Create( d3dDevice, L".\\Media\\SpotLightProxy.sdkmesh") ));
+		
+		V(mPointLightProxy->Create( d3dDevice, L".\\Media\\PointLightProxy.sdkmesh"));
+		V(mSpotLightProxy->Create( d3dDevice, L".\\Media\\SpotLightProxy.sdkmesh"));
+
+		if (!mPointLightProxy->IsLoaded())
+		{
+			throw std::exception("Error");
+		}
 	}
 
 	// Load noise texture
@@ -355,7 +362,7 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 
 	// normals and depth
 	mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
-		DXGI_FORMAT_R32G32B32A32_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+		DXGI_FORMAT_R8G8B8A8_UNORM, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
 
 	// albedo
 	mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
@@ -428,7 +435,6 @@ void SSAO::Render( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView
 
 	// GBuffer normal and depth
 	ID3D11ShaderResourceView* srv[] = { mLitBuffer->GetShaderResourceView() };
-	//ID3D11ShaderResourceView* srv[] = { mGBufferSRV[1] };
 	d3dDeviceContext->PSSetShaderResources(0, 1, srv);
 	d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
 
@@ -534,8 +540,7 @@ void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const CFirstPe
 	d3dDeviceContext->OMSetBlendState(mLightingBlendState, 0, 0xFFFFFFFF);
 
 	DrawPointLight(d3dDeviceContext, viewerCamera);
-
-	//DrawDirectionalLight(d3dDeviceContext, D3DXVECTOR3(1, -1, -1), D3DXVECTOR3(1, 1, 1), viewerCamera);
+	DrawDirectionalLight(d3dDeviceContext, D3DXVECTOR3(1, -1, -1), D3DXVECTOR3(1, 1, 1), viewerCamera);
 
 	// Cleanup (aka make the runtime happy)
 	d3dDeviceContext->VSSetShader(0, 0, 0);
@@ -637,7 +642,8 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const CFirstPe
 			LightCBuffer* light = static_cast<LightCBuffer*>(mappedResource.pData);
 
 			D3DXVec3TransformCoord(&light->LightPosVS, &lightPosition, &cameraView);
-			light->LightColor = D3DXVECTOR3(1, 1,1);//mPointLights[i].LightColor;
+			light->LightColor = mPointLights[i].LightColor;
+			//light->LightColor = D3DXVECTOR3(1, 1,1);
 			light->LightFalloff = mPointLights[i].LightFalloff;
 
 			d3dDeviceContext->Unmap(mPointLightConstants, 0);

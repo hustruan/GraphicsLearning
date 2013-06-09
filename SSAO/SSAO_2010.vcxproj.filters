@@ -109,7 +109,6 @@
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="Utility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
@@ -121,7 +120,6 @@
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Shader.h" />
-    <ClInclude Include="Utility.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

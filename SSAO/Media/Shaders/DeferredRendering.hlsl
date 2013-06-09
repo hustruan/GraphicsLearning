@@ -59,7 +59,6 @@ float4 DeferredRenderingPointPS(in float3 oTex : TEXCOORD0, in float3 oViewRay :
 	
 	// Convert non-linear depth to view space linear depth
 	float linearDepth = LinearizeDepth( DepthBuffer.Sample(PointSampler, tex).x, CameraNearFar.x, CameraNearFar.y );
-	linearDepth /= CameraNearFar.y;
 
 	// View space lit position
 	float3 positionVS = PositionVSFromDepth(oViewRay, linearDepth);
@@ -102,8 +101,6 @@ float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewR
 
 	// Convert non-linear depth to view space linear depth
 	float linearDepth = LinearizeDepth( DepthBuffer.Sample(PointSampler, oTex).x, CameraNearFar.x, CameraNearFar.y );
-	
-	//linearDepth = linearDepth / CameraNearFar.y;
 
 	// View space lit position
 	float3 positionVS = PositionVSFromDepth(oViewRay, linearDepth);
