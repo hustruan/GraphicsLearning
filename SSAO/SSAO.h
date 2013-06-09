@@ -7,15 +7,28 @@
 #include <memory>
 #include <algorithm>
 
+#define Float4Align __declspec(align(16))
+
 using std::shared_ptr;
+
+template<typename T> class Shader;
 
 class CDXUTSDKMesh;
 class CFirstPersonCamera;
 class Texture2D;
 
+struct PointLight
+{
+	D3DXVECTOR3 LightColor;
+	D3DXVECTOR3 LightPosition;
+	D3DXVECTOR2 LightFalloff;
 
-template<typename T>
-class Shader;
+	// Cylindrical coordinates
+	float radius;
+	float angle;
+	float height;
+	float animationSpeed;
+};
 
 class SSAO
 {
@@ -27,26 +40,39 @@ public:
 
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
 
+	void Move(float elapsedTime);
+
 	void Render(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
-		CDXUTSDKMesh& sceneMesh, const D3DXMATRIX& worldMatrix, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport );
+		CDXUTSDKMesh& sceneMesh, const D3DXMATRIX& worldMatrix, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 private:
+
+	void SetupLights();
+
 	void RenderGBuffer(ID3D11DeviceContext* d3dDeviceContext, CDXUTSDKMesh& sceneMesh, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
-	void ComputerLighting(ID3D11DeviceContext* d3dDeviceContext, const D3D11_VIEWPORT* viewport);
+	void ComputeShading(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
-	
+
+	void DrawPointLight(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera);
+
+	void DrawSpotLight();
+	void DrawDirectionalLight(ID3D11DeviceContext* d3dDeviceContext, const D3DXVECTOR3& lightDirection, const D3DXVECTOR3& lightColor, const CFirstPersonCamera& viewerCamera);
+
 private:
 
 	UINT mGBufferWidth, mGBufferHeight; 
 
 	ID3D11InputLayout* mMeshVertexLayout;
+	ID3D11InputLayout* mLightProxyVertexLayout;
 
 	ID3D11Buffer* mPerFrameConstants;
 	ID3D11Buffer* mAOParamsConstants;
+	ID3D11Buffer* mPointLightConstants;
 
 	shared_ptr<Texture2D> mDepthBuffer;
+	ID3D11DepthStencilView* mDepthBufferReadOnlyDSV;
 
 	// GBuffer Shaders
 	shared_ptr<VertexShader> mGeometryVS;
@@ -55,6 +81,20 @@ private:
 	std::vector<shared_ptr<Texture2D>> mGBuffer;
 	std::vector<ID3D11RenderTargetView*> mGBufferRTV;
 	std::vector<ID3D11ShaderResourceView*> mGBufferSRV;
+
+	// Deferred Shading Lit Buffer
+	shared_ptr<Texture2D> mLitBuffer;
+
+	shared_ptr<VertexShader> mDeferredDirectionalVS;
+	shared_ptr<PixelShader> mDeferredDirectionalPS;
+
+	shared_ptr<VertexShader> mDeferredPointOrSpotVS;
+	shared_ptr<PixelShader> mDeferredPointPS;
+	shared_ptr<PixelShader> mDeferredSpotPS;
+
+
+	shared_ptr<VertexShader> mDebugVS;;
+	shared_ptr<PixelShader> mDebugPS;
 
 	// SSAO Shaders
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
@@ -70,10 +110,26 @@ private:
 	ID3D11SamplerState* mNoiseSampler;
 	ID3D11SamplerState* mGBufferSampler;
 	
-	ID3D11RasterizerState* mRasterizerState;
+	ID3D11RasterizerState* mRasterizerState;       // Cull back
+	ID3D11RasterizerState* mRasterizerFrontState;  // Cull front
+
 	ID3D11DepthStencilState* mDepthState;
+	ID3D11DepthStencilState* mDepthGreaterState;
+	ID3D11DepthStencilState* mDepthLEQualState;
+	ID3D11DepthStencilState* mDepthDisableState;   // Depth Disable
+
 	ID3D11BlendState* mGeometryBlendState;
+	ID3D11BlendState* mLightingBlendState;
 
 
+	CDXUTSDKMesh* mPointLightProxy;
+	CDXUTSDKMesh* mSpotLightProxy;
+
+	std::vector<PointLight> mPointLights;
+
+	float mTotalTime;
+
+
+	shared_ptr<PixelShader> mFullQuadSprite;
 };
 

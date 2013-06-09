@@ -3,8 +3,8 @@
 
 struct GBuffer
 {
-	float4 Normal : SV_Target0;
-    float4 Albedo : SV_Target1;
+	float4 Normal : SV_Target0;     // Normal + shininess
+    float4 Albedo : SV_Target1;     // Diffuse + Specular
 };
 
 float3 EncodeNormal(float3 normal)

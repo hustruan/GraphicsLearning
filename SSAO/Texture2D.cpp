@@ -105,3 +105,11 @@ Texture2D::~Texture2D( void )
 	SAFE_RELEASE(mShaderResourceView);
 	SAFE_RELEASE(mTexture);
 }
+
+void Texture2D::SaveTextureToFile( ID3D11DeviceContext *pContext, D3DX11_IMAGE_FILE_FORMAT fmt, LPCTSTR pDestFile )
+{
+	/*D3D11_MAPPED_SUBRESOURCE texmap;
+	HRESULT hr = pContext->Map(mTexture, 0, D3D11_MAP_READ, 0, &texmap);
+
+	D3DX11SaveTextureToFile(pContext, mTexture, fmt, pDestFile);*/
+}

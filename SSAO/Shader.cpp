@@ -38,6 +38,30 @@ namespace ShaderFactory
 	 }
 }
 
+ID3D11InputLayout* CreateVertexLayout( ID3D11Device* d3dDevice, const D3D11_INPUT_ELEMENT_DESC* layout, int size, LPCTSTR srcFile, LPCSTR szEntryPoint, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
+{
+	HRESULT hr; 
+
+	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
+
+	ID3D11InputLayout* pVertexLayout = 0;
+
+	ID3D10Blob* pBytecode = 0;
+	ID3DBlob* pErrorBlob;
+	hr = D3DX11CompileFromFile( srcFile, defines, NULL, szEntryPoint, "vs_4_0", 
+		dwShaderFlags, 0, NULL, &pBytecode, &pErrorBlob, NULL );
+
+	assert(SUCCEEDED(hr));
+
+	hr = d3dDevice->CreateInputLayout(layout, size, pBytecode->GetBufferPointer(), 
+		pBytecode->GetBufferSize(), &pVertexLayout);
+	assert(SUCCEEDED(hr));
+
+	SAFE_RELEASE( pErrorBlob );
+	SAFE_RELEASE( pBytecode );
+	return pVertexLayout;
+}
+
 
 template<typename T>
 Shader<T>::Shader( ID3D11Device* d3dDevice, LPCTSTR srcFile, LPCSTR szEntryPoint, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )

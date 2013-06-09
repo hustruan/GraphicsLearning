@@ -135,9 +135,7 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	// Setup the camera's projection parameters
 	float fAspectRatio = pBackBufferSurfaceDesc->Width / ( FLOAT )pBackBufferSurfaceDesc->Height;
 	
-	auto proj = g_Camera.GetProjMatrix();
 	g_Camera.SetProjParams( D3DX_PI / 4, fAspectRatio, 0.5f, 300.0f);
-	proj = g_Camera.GetProjMatrix();
 
 	// Standard HUDs
 	const int border = 20;
@@ -156,6 +154,7 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
 	g_Camera.FrameMove(fElapsedTime);
+	g_SSAO->Move(fElapsedTime);
 }
 
 
@@ -165,8 +164,6 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext,
                                   double fTime, float fElapsedTime, void* pUserContext )
 {
-	HRESULT hr;
-
 	// If the settings dialog is being shown, then render it instead of rendering the app's scene
 	if( g_D3DSettingsDlg.IsActive() )
 	{
@@ -198,11 +195,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	g_SSAO->Render(pd3dImmediateContext, pRTV, pDSV, g_SceneMesh, g_WorldMatrix, g_Camera, &viewport);
 
-
 	// reset render target
 	pd3dImmediateContext->RSSetViewports(1, &viewport);
 	pd3dImmediateContext->OMSetRenderTargets(1, &pRTV, pDSV);
-
 
 	g_HUD.OnRender( fElapsedTime );
 
@@ -217,7 +212,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	// Output frame time
 	{
 		std::wostringstream oss;
-		oss << 1000.0f / DXUTGetFPS() << " ms / frame";
+		D3DXVECTOR3 eye = *g_Camera.GetEyePt();
+		oss << 1000.0f / DXUTGetFPS() << " ms / frame" << " Camera Pos: (" << eye.x << " " << eye.y << " " << eye.z << ")";;
 		g_TextHelper->DrawTextLine(oss.str().c_str());
 	}
 
@@ -344,7 +340,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     DXUTCreateWindow( L"SSAO" );
 
     // Only require 10-level hardware
-    DXUTCreateDevice( D3D_FEATURE_LEVEL_10_0, true,  1280, 720);
+    DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true,  1280, 720);
     DXUTMainLoop(); // Enter into the DXUT ren  der loop
 
     // Perform any application-level cleanup here

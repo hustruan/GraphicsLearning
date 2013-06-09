@@ -1,0 +1,88 @@
+Usage: ContentExporter [options] "filename1" "filename2" ... "filenameN"
+
+The following command line options can be used to modify scene parse and file output behavior.
+
+General & Macro Options:
+    -help : Display help
+    -? : Display help
+    -outputpath <path> : Sets the output root path; files will appear in scenes/ and textures/ subdirectories
+    -verbose : Displays more detailed output, equivalent to -loglevel 4
+    -xatg : Use the XATG output file format (default), equivalent to -fileformat xatg
+    -sdkmesh : Use the SDKMESH output file format, equivalent to -fileformat sdkmesh
+    -xbox360 : Sets export options for an Xbox 360 target
+    -windowsd3d9 : Sets export options for a Windows Direct3D 9 target
+    -windowsd3d10 : Sets export options for a Windows Direct3D 10/11 target
+    -collisionmesh : Sets export options for collision mesh export
+    -animation : Sets export options for animation track export
+    -character : Sets export options for character (mesh & skeleton) export
+    -subd11 : Sets export options for subdivision surface processing for SubD11 sample
+    -subdxbox : Sets export options for subdivision surface processing for Xbox SubD sample
+    -savesettings <filename> : Saves all settings to the specified filename
+    -loadsettings <filename> : Loads settings from the specified filename
+    -filelist <filename> : Loads a list of input filenames from the specified filename
+    -loglevel <ranged value 1 - 10> : Sets the message logging level, higher values show more messages
+
+Target Platform Options:
+    -fileformat [ xatg | sdkmesh ] : Output File Format
+    -endian [ ppc | intel ] : Data Endianness
+
+Scene Options:
+    -exporthiddenobjects[+|-] (default -) : Export Hidden Objects
+    -exportframes[+|-] (default +) : Export Frames
+    -exportlights[+|-] (default +) : Export Lights
+    -lightrangescale <ranged value 0.000 - 1000.000, default 1.000> : Light Range Scale
+    -exportcameras[+|-] (default +) : Export Cameras
+    -exportbindpose[+|-] (default +) : Export in Bind Pose
+    -exportscale <ranged value 0.000 - 1000000.000, default 1.000> : Export Scene Scale (1.0 = default)
+
+Meshes Options:
+    -exportmeshes[+|-] (default +) : Export Meshes
+    -compressvertexdata[+|-] (default +) : Compress Vertex Data
+    -computevertextangents[+|-] (default +) : Compute Vertex Tangent Space
+    -exportbinormals[+|-] (default +) : Export Binormals
+    -compressednormaltype [ float3 | dec3n | ubyte4n | short4n | float16_4 ] : Compressed Type for Normals
+    -exportnormals[+|-] (default +) : Export Normals
+    -force32bitindices[+|-] (default -) : Force 32 Bit Index Buffers
+    -maxuvsetcount <ranged value 0 - 8, default 8> : Max UV Set Count
+    -exportboneweights[+|-] (default +) : Export Bone Weights & Indices for Skinned Meshes
+    -forceboneweights[+|-] (default -) : Always Export Bone Weights & Indices for Skinned Meshes (even if no data p
+resent)
+    -fliptriangles[+|-] (default +) : Flip Triangle Winding
+    -invertvtexcoord[+|-] (default +) : Invert V Texture Coordinates
+    -meshnamedecoration <string default: "Mesh"> : Mesh Name Decoration, applied as a prefix to mesh names
+
+UV Atlas Generation Options:
+    -generateuvatlas <ranged value -1 - 7, default -1> : Generate UV Atlas on Texture Coordinate Index
+    -uvatlasstretch <ranged value 0.000 - 1.000, default 0.750> : UV Atlas Max Stretch Factor
+    -uvatlasgutter <ranged value 0.000 - 10.000, default 2.500> : UV Atlas Gutter Size
+    -uvatlastexturesize <ranged value 64 - 4096, default 1024> : UV Atlas Texture Size
+
+Subdivision Surfaces Options:
+    -convertmeshtosubd[+|-] (default -) : Convert Poly Meshes to Subdivision Surfaces
+
+Materials Options:
+    -exportmaterials[+|-] (default +) : Export Materials
+    -defaultmaterialname <string default: "Default"> : Default Material Name
+    -texturecompression[+|-] (default +) : Use Texture Compression
+    -generatetexturemips[+|-] (default -) : Generate Texture Mip Maps
+    -forcetextureoverwrite[+|-] (default -) : Force Texture File Overwriting
+    -defaultdiffusemap <string default: "default.dds"> : Default Diffuse Map Texture Filename
+    -defaultnormalmap <string default: "default-normalmap.dds"> : Default Normal Map Texture Filename
+
+Animation Options:
+    -exportanimations[+|-] (default +) : Export Animations
+    -optimizeanimations[+|-] (default +) : Optimize Animations
+    -renameanimations[+|-] (default +) : Rename Animations To Match Output File Name
+    -animsamplecount <ranged value 1 - 10, default 1> : Animation Baking Sample Count Per Frame
+    -positioncurvequality <ranged value 0 - 100, default 50> : Position Curve Quality
+    -orientationcurvequality <ranged value 0 - 100, default 50> : Orientation Curve Quality
+    -animationrootnode <string default: ""> : Animation Root Node Name (default includes all nodes)
+
+XATG File Export Options:
+    -packmeshdata[+|-] (default +) : Write .pmem Fast Load File
+    -useexistingbundle[+|-] (default -) : Use Existing Bundle
+    -bundletextures[+|-] (default +) : Bundle Textures
+
+//-------------------------------------------------------------------------------------------------------------------------
+Position: ContentExporter -exportbindpose- -exportcameras- -exportanimations- -computevertextangents- -compressvertexdata- -exportnormals- -maxuvsetcount 0 -sdkmesh -loglevel 10 teapot.fbx
+Position+Normal+UV0: ContentExporter -exportbindpose- -exportanimations- -computevertextangents- -compressvertexdata- -compressednormaltype float3 -maxuvsetcount 1 -sdkmesh -loglevel 10 PointLightSphere.FBX

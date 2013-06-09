@@ -5,8 +5,8 @@ cbuffer PerFrameConstants : register(b0)
 {
 	float4x4 WorldViewProj;
     float4x4 WorldView;
-    float4x4 ViewProj;
     float4x4 Proj;
+	float4x4 InvProj;
     float4 CameraNearFar;
 	uint4 FramebufferDimensions;
 };
