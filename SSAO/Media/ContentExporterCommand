@@ -85,4 +85,4 @@ XATG File Export Options:
 
 //-------------------------------------------------------------------------------------------------------------------------
 Position: ContentExporter -exportbindpose- -exportcameras- -exportanimations- -computevertextangents- -compressvertexdata- -exportnormals- -maxuvsetcount 0 -sdkmesh -loglevel 10 teapot.fbx
-Position+Normal+UV0: ContentExporter -exportbindpose- -exportanimations- -computevertextangents- -compressvertexdata- -compressednormaltype float3 -maxuvsetcount 1 -sdkmesh -loglevel 10 PointLightSphere.FBX
+Position+Normal+UV0: ContentExporter -exportbindpose- -exportanimations- -compressvertexdata- -compressednormaltype float3 -maxuvsetcount 1 -sdkmesh -loglevel 10 PointLightSphere.FBX

@@ -21,9 +21,6 @@ struct GeometryVSOut
     float2 oTex       : TEXCOORD1;
 };
 
-float Shininess = 25.0f;
-float Specular = 0.5f;
-
 GeometryVSOut GeometryVS(GeometryVSIn input)
 {
     GeometryVSOut output;
@@ -40,6 +37,9 @@ void GeometryPS(GeometryVSOut input, out GBuffer outputGBuffer)
     float4 albedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
     float3 normal = normalize(input.oNormal);
      
+	const float Shininess = 25.0f;
+    const float Specular = 0.5f;
+
     outputGBuffer.Normal = float4(EncodeNormal(normal), Shininess/256.0f);
     outputGBuffer.Albedo = float4(albedo.rgb, Specular);
 }

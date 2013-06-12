@@ -378,9 +378,13 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="LightAnimation.cpp" />
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
+    <ClInclude Include="LightAnimation.h" />
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
@@ -409,6 +413,7 @@
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
     <None Include="Media\Shaders\DeferredRead.hlsl" />
     <None Include="Media\Shaders\DeferredRendering.hlsl" />
+    <None Include="Media\Shaders\ForwardRendering.hlsl" />
     <None Include="Media\Shaders\FullQuadSprite.hlsl" />
     <None Include="Media\Shaders\FullScreenTriangle.hlsl" />
     <None Include="Media\Shaders\GBuffer.hlsl" />

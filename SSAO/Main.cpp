@@ -14,6 +14,8 @@
 #include "resource.h"
 
 #include "SSAO.h"
+#include "Scene.h"
+#include "LightAnimation.h"
 
 #include <sstream>
 
@@ -21,21 +23,27 @@ CDXUTDialogResourceManager  g_DialogResourceManager; // manager for shared resou
 CDXUTDialog                 g_HUD;                  // manages the 3D   
 CD3DSettingsDlg             g_D3DSettingsDlg;       // Device settings dialog
 CDXUTComboBox*              g_SceneSelectCombo;
+CDXUTComboBox*              g_ShadingSelectCombo;
 CDXUTTextHelper*            g_TextHelper;
 CFirstPersonCamera          g_Camera;               // A FPS camera
 
-
-CDXUTSDKMesh                g_SceneMesh;
-D3DXMATRIXA16               g_WorldMatrix;
-
-// SSAO Render
 SSAO*                       g_SSAO;
+Scene*                      g_Scene;
+LightAnimation*             g_LightAnimation;
+
 
 enum SceneSelection
 {
 	Scene_Power_Plant,
 	Scene_Sponza,
 };
+
+enum ShadingSelection
+{
+	Shading_Forward,
+	Shading_DeferredShading,
+};
+
 
 //--------------------------------------------------------------------------------------
 // UI control IDs
@@ -44,6 +52,7 @@ enum SceneSelection
 #define IDC_TOGGLEREF           3
 #define IDC_CHANGEDEVICE        4
 #define IDC_SCENE_SELECTION     5
+#define IDC_SHADING_SELECTION   6
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext );
 
@@ -154,7 +163,9 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
 	g_Camera.FrameMove(fElapsedTime);
-	g_SSAO->Move(fElapsedTime);
+
+	//if (g_LightAnimation)
+		//g_LightAnimation->Move(fElapsedTime);
 }
 
 
@@ -172,7 +183,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	}
 
 	// Lazily load scene
-	if (!g_SceneMesh.IsLoaded()) 
+	if (!g_Scene) 
 	{
 		InitScene(pd3dDevice);
 	}
@@ -193,7 +204,16 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
 
-	g_SSAO->Render(pd3dImmediateContext, pRTV, pDSV, g_SceneMesh, g_WorldMatrix, g_Camera, &viewport);
+	ShadingSelection shadingType = static_cast<ShadingSelection>(PtrToUlong(g_ShadingSelectCombo->GetSelectedData()));
+	switch(shadingType)
+	{
+	case Shading_Forward:
+		g_SSAO->RenderForward(pd3dImmediateContext, pRTV, pDSV, *g_Scene, *g_LightAnimation, g_Camera, &viewport);
+		break;
+	case Shading_DeferredShading:
+		g_SSAO->Render(pd3dImmediateContext, pRTV, pDSV, *g_Scene, *g_LightAnimation, g_Camera, &viewport);
+		break;
+	}
 
 	// reset render target
 	pd3dImmediateContext->RSSetViewports(1, &viewport);
@@ -213,7 +233,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	{
 		std::wostringstream oss;
 		D3DXVECTOR3 eye = *g_Camera.GetEyePt();
-		oss << 1000.0f / DXUTGetFPS() << " ms / frame" << " Camera Pos: (" << eye.x << " " << eye.y << " " << eye.z << ")";;
+		D3DXVECTOR3 dir = *g_Camera.GetLookAtPt();
+		D3DXVec3Normalize(&dir, &dir);
+		oss << 1000.0f / DXUTGetFPS() << " ms / frame" << " Camera Pos: (" << eye.x << " " << eye.y << " " << eye.z << ") ";
 		g_TextHelper->DrawTextLine(oss.str().c_str());
 	}
 
@@ -272,6 +294,8 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 	// Pass all remaining windows messages to camera so it can respond to user input
 	g_Camera.HandleMessages(hWnd, uMsg, wParam, lParam);
 
+	g_LightAnimation->RecordLight(g_Camera, uMsg, wParam, lParam);
+
     return 0;
 }
 
@@ -313,6 +337,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
 
+
     // DXUT will create and use the best device (either D3D9 or D3D11) 
     // that is available on the system depending on which D3D callbacks are set below
 
@@ -352,10 +377,15 @@ void InitScene(ID3D11Device* d3dDevice)
 {
 	DestroyScene();
 
+	g_LightAnimation = new LightAnimation;
+	g_Scene = new Scene;
+
 	D3DXVECTOR3 cameraEye(0.0f, 0.0f, 0.0f);
 	D3DXVECTOR3 cameraAt(0.0f, 0.0f, 0.0f);
 	D3DXVECTOR3 lightDirection(0.0f, 0.0f, 0.0f);
 	float sceneScaling = 1.0f;
+
+	D3DXMATRIX world;
 
 	HRESULT hr;
 
@@ -364,24 +394,34 @@ void InitScene(ID3D11Device* d3dDevice)
 	{
 	case Scene_Power_Plant: 
 		{
-			hr = g_SceneMesh.Create(d3dDevice, L".\\Media\\powerplant\\powerplant.sdkmesh");
+			g_LightAnimation->LoadLights(".\\Media\\Animation.txt");
+			//g_LightAnimation->RandonPointLight(10);
+
 			sceneScaling = 1.0f;
+			D3DXMatrixScaling(&world, sceneScaling, sceneScaling, sceneScaling);
+			
+			g_Scene->LoadOpaqueMesh(d3dDevice, L"..\\media\\powerplant\\powerplant.sdkmesh", world);
+
 			cameraEye = sceneScaling * D3DXVECTOR3(100.0f, 5.0f, 5.0f);
-			cameraAt = sceneScaling * D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+			cameraAt = sceneScaling * D3DXVECTOR3(0.0f, 0.0f, 0.0f);		
 		} 
 		break;
 
 	case Scene_Sponza: 
 		{
-			g_SceneMesh.Create(d3dDevice, L".\\Media\\Sponza\\sponza_dds.sdkmesh");
+			g_LightAnimation->LoadLights(".\\Media\\Animation.txt");
+			//g_LightAnimation->RandonPointLight(100);
+
 			sceneScaling = 0.05f;
+			D3DXMatrixScaling(&world, sceneScaling, sceneScaling, sceneScaling);
+
+			g_Scene->LoadOpaqueMesh(d3dDevice, L".\\Media\\Sponza\\sponza_dds.sdkmesh", world);
+
 			cameraEye = sceneScaling * D3DXVECTOR3(1200.0f, 200.0f, 100.0f);
 			cameraAt = sceneScaling * D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 		} 
 		break;
 	};
-
-	D3DXMatrixScaling(&g_WorldMatrix, sceneScaling, sceneScaling, sceneScaling);
 
 	g_Camera.SetViewParams(&cameraEye, &cameraAt);
 	g_Camera.SetScalers(0.01f, 10.0f);
@@ -390,7 +430,18 @@ void InitScene(ID3D11Device* d3dDevice)
 
 void DestroyScene()
 {
-	g_SceneMesh.Destroy();
+	if (g_Scene)
+	{
+		delete g_Scene;
+		g_Scene = NULL;
+	}
+
+	if (g_LightAnimation)
+	{
+		g_LightAnimation->SaveLights();
+		delete g_LightAnimation;
+		g_LightAnimation = NULL;
+	}	
 }
 
 void InitUI()
@@ -407,6 +458,9 @@ void InitUI()
 	g_HUD.AddComboBox(IDC_SCENE_SELECTION, 0, iY +=36, width, 23, 0, false, &g_SceneSelectCombo);
 	g_SceneSelectCombo->AddItem(L"Power Plant", ULongToPtr(Scene_Power_Plant));
 	g_SceneSelectCombo->AddItem(L"Sponza", ULongToPtr(Scene_Sponza));
+	g_HUD.AddComboBox(IDC_SHADING_SELECTION, 0, iY +=36, width, 23, 0, false, &g_ShadingSelectCombo);
+	g_ShadingSelectCombo->AddItem(L"Forward", ULongToPtr(Shading_Forward));
+	g_ShadingSelectCombo->AddItem(L"Deferred Shading", ULongToPtr(Shading_DeferredShading));
 
 	g_HUD.SetSize(width, iY);
 }

@@ -16,19 +16,8 @@ template<typename T> class Shader;
 class CDXUTSDKMesh;
 class CFirstPersonCamera;
 class Texture2D;
-
-struct PointLight
-{
-	D3DXVECTOR3 LightColor;
-	D3DXVECTOR3 LightPosition;
-	D3DXVECTOR2 LightFalloff;
-
-	// Cylindrical coordinates
-	float radius;
-	float angle;
-	float height;
-	float animationSpeed;
-};
+class Scene;
+class LightAnimation;
 
 class SSAO
 {
@@ -40,25 +29,30 @@ public:
 
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
 
-	void Move(float elapsedTime);
-
 	void Render(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
-		CDXUTSDKMesh& sceneMesh, const D3DXMATRIX& worldMatrix, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+		const Scene& scene, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+
+	/**
+	 * Forward only render the directional light
+	 */
+	void RenderForward(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
+		const Scene& scene, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 private:
 
-	void SetupLights();
+	void RenderGBuffer(ID3D11DeviceContext* d3dDeviceContext, const Scene& scene, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
-	void RenderGBuffer(ID3D11DeviceContext* d3dDeviceContext, CDXUTSDKMesh& sceneMesh, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
-
-	void ComputeShading(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+	void ComputeShading(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
-	void DrawPointLight(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera);
+	void DrawPointLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
-	void DrawSpotLight();
-	void DrawDirectionalLight(ID3D11DeviceContext* d3dDeviceContext, const D3DXVECTOR3& lightDirection, const D3DXVECTOR3& lightColor, const CFirstPersonCamera& viewerCamera);
+	void DrawSpotLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
+
+	void DrawDirectionalLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
+
+	void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
 private:
 
@@ -69,7 +63,7 @@ private:
 
 	ID3D11Buffer* mPerFrameConstants;
 	ID3D11Buffer* mAOParamsConstants;
-	ID3D11Buffer* mPointLightConstants;
+	ID3D11Buffer* mLightConstants;
 
 	shared_ptr<Texture2D> mDepthBuffer;
 	ID3D11DepthStencilView* mDepthBufferReadOnlyDSV;
@@ -84,6 +78,10 @@ private:
 
 	// Deferred Shading Lit Buffer
 	shared_ptr<Texture2D> mLitBuffer;
+	shared_ptr<Texture2D> mAOBuffer;
+
+	shared_ptr<VertexShader> mForwardDirectionalVS;
+	shared_ptr<PixelShader> mForwardDirectionalPS;
 
 	shared_ptr<VertexShader> mDeferredDirectionalVS;
 	shared_ptr<PixelShader> mDeferredDirectionalPS;
@@ -92,7 +90,6 @@ private:
 	shared_ptr<PixelShader> mDeferredPointPS;
 	shared_ptr<PixelShader> mDeferredSpotPS;
 
-
 	shared_ptr<VertexShader> mDebugVS;;
 	shared_ptr<PixelShader> mDebugPS;
 
@@ -100,11 +97,8 @@ private:
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
 	shared_ptr<PixelShader> mSSAOCrytekPS;
 
-	shared_ptr<Texture2D> mAOBuffer;
-
 	// Noise Texture
 	ID3D11ShaderResourceView* mNoiseSRV;
-	
 	
 	ID3D11SamplerState* mDiffuseSampler;
 	ID3D11SamplerState* mNoiseSampler;
@@ -121,14 +115,8 @@ private:
 	ID3D11BlendState* mGeometryBlendState;
 	ID3D11BlendState* mLightingBlendState;
 
-
 	CDXUTSDKMesh* mPointLightProxy;
 	CDXUTSDKMesh* mSpotLightProxy;
-
-	std::vector<PointLight> mPointLights;
-
-	float mTotalTime;
-
 
 	shared_ptr<PixelShader> mFullQuadSprite;
 };

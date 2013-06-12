@@ -90,8 +90,6 @@ float4 DeferredRenderingPointPS(in float3 oTex : TEXCOORD0, in float3 oViewRay :
 		final *= LightColor * nDotl * CalculateAttenuation(dist, LightFalloff.x, LightFalloff.y);
 	}
 
-	//final = float3(linearDepth, linearDepth, linearDepth);
-
 	return float4(final, 1.0f);
 }
 
@@ -131,7 +129,7 @@ float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewR
 		final *= LightColor * nDotl;
 	}
 
-	//final = float3(linearDepth, linearDepth, linearDepth);
+
 	return float4(final, 1.0f);
 }
 
@@ -143,7 +141,7 @@ void DebugPointLightVS(in float3 iPos : POSITION, out float4 oPos : SV_Position)
 
 float4 DebugPointLightPS() : SV_Target0
 {
-	return float4(1.0, 0, 0, 1.0f);
+	return float4(LightColor, 1.0f);
 }
 
 #endif

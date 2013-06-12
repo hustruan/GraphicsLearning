@@ -103,12 +103,17 @@
     <None Include="Media\Shaders\FullQuadSprite.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Media\Shaders\ForwardRendering.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="LightAnimation.cpp" />
+    <ClCompile Include="Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
@@ -120,6 +125,8 @@
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="LightAnimation.h" />
+    <ClInclude Include="Scene.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
