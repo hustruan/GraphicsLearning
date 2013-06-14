@@ -43,7 +43,7 @@ float4 ForwardPS( ForwardVSOut input ) : SV_Target0
 {
 	float3 final = 0;
 
-	const float shininess = 25.0f;
+	const float shininess = 50.0f;
 	const float3 specularAlbedo = float3(0.5f, 0.5f, 0.5f);
 
 	float3 N = normalize(input.oNormal);
@@ -58,7 +58,8 @@ float4 ForwardPS( ForwardVSOut input ) : SV_Target0
 		
 	    float3 diffuseAlbedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
 
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess) * specularAlbedo;
+		
+		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess);
 		final *= LightColor * nDotl;
 	}
 

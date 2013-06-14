@@ -65,8 +65,8 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 {
 	mFullQuadSprite = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\FullQuadSprite.hlsl", "FullQuadSpritePS", nullptr);
 
-	mGeometryVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\Rendering.hlsl", "GeometryVS", nullptr);
-	mGeometryPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\Rendering.hlsl", "GeometryPS", nullptr);
+	mGeometryVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\GBuffer.hlsl", "GeometryVS", nullptr);
+	mGeometryPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\GBuffer.hlsl", "GeometryPS", nullptr);
 
 	mFullScreenTriangleVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\FullScreenTriangle.hlsl", "FullScreenTriangleVS", nullptr);
 	mSSAOCrytekPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\SSAO.hlsl", "SSAOPS", nullptr);
@@ -104,7 +104,7 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 			{"TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		};
 
-		mMeshVertexLayout = CreateVertexLayout(d3dDevice, layout, ARRAYSIZE(layout),  L".\\Media\\Shaders\\Rendering.hlsl", "GeometryVS", NULL);
+		mMeshVertexLayout = CreateVertexLayout(d3dDevice, layout, ARRAYSIZE(layout),  L".\\Media\\Shaders\\GBuffer.hlsl", "GeometryVS", NULL);
 		DXUT_SetDebugName(mMeshVertexLayout, "mMeshVertexLayout");
 	}
 
@@ -267,6 +267,9 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\vector_noise.dds", NULL, NULL, &mNoiseSRV, NULL );
 	DXUT_SetDebugName(mNoiseSRV, "mNoiseSRV");
 
+	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\BestFitNormal.dds", NULL, NULL, &mBestFitNormalSRV, NULL );
+	DXUT_SetDebugName(mNoiseSRV, "mBestFitNormalSRV");
+
 	mDebugVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DebugPointLightVS", nullptr);
 	mDebugPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DebugPointLightPS", nullptr);
 }
@@ -293,6 +296,7 @@ SSAO::~SSAO(void)
 	SAFE_RELEASE(mLightConstants);
 
 	SAFE_RELEASE(mNoiseSRV);
+	SAFE_RELEASE(mBestFitNormalSRV);
 	SAFE_RELEASE(mDepthBufferReadOnlyDSV);
 	
 	SAFE_RELEASE(mGeometryBlendState);
@@ -329,7 +333,10 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 
 	// normals and depth
 	mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
-		DXGI_FORMAT_R8G8B8A8_UNORM/*DXGI_FORMAT_R16G16B16A16_FLOAT*/, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+		DXGI_FORMAT_R8G8B8A8_UNORM, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+
+	/*mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
+		DXGI_FORMAT_R16G16B16A16_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));*/
 
 	// albedo
 	mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
@@ -462,7 +469,9 @@ void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, const Scene& sc
 	d3dDeviceContext->RSSetViewports(1, viewport);
 
 	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
-	d3dDeviceContext->PSSetSamplers(0, 1, &mDiffuseSampler);
+	d3dDeviceContext->PSSetShaderResources(0, 1, &mBestFitNormalSRV);
+	d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler); // Point Sampler
+	d3dDeviceContext->PSSetSamplers(1, 1, &mDiffuseSampler);
 	d3dDeviceContext->PSSetShader(mGeometryPS->GetShader(), 0, 0);
 
 	d3dDeviceContext->OMSetDepthStencilState(mDepthState, 0);
@@ -492,7 +501,7 @@ void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, const Scene& sc
 			d3dDeviceContext->Unmap(mPerFrameConstants, 0);
 		}
 
-		scene.mSceneMeshesOpaque[i].Mesh->Render(d3dDeviceContext, 0);
+		scene.mSceneMeshesOpaque[i].Mesh->Render(d3dDeviceContext, 1);
 	}
 	
 	// Cleanup (aka make the runtime happy)

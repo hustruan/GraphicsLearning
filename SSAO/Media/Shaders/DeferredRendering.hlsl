@@ -3,7 +3,6 @@
 
 #include "PerFrameConstants.hlsl"
 #include "Utility.hlsl"
-#include "GBuffer.hlsl"
 
 cbuffer Light
 {
@@ -68,7 +67,7 @@ float4 DeferredRenderingPointPS(in float3 oTex : TEXCOORD0, in float3 oViewRay :
 	float4 tap1 = GBuffer1.Sample(PointSampler, tex);
 
 	// Decode view space normal
-	float3 N = DecodeNormal( tap0.rgb ); 
+	float3 N = normalize(DecodeNormal( tap0.rgb )); 
 	float shininess = tap0.a * 256.0f;
 
 	// Get Diffuse Albedo and Specular
@@ -86,7 +85,7 @@ float4 DeferredRenderingPointPS(in float3 oTex : TEXCOORD0, in float3 oViewRay :
 	{
 		float3 V = normalize(-positionVS);
 		float3 H = normalize(L + V);
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess) * specularAlbedo;
+		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess);
 		final *= LightColor * nDotl * CalculateAttenuation(dist, LightFalloff.x, LightFalloff.y);
 	}
 
@@ -108,7 +107,7 @@ float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewR
 	float4 tap1 = GBuffer1.Sample(PointSampler, oTex);
 
 	// Decode view space normal
-	float3 N = DecodeNormal( tap0.rgb ); 
+	float3 N = normalize(DecodeNormal( tap0.rgb )); 
 	float shininess = tap0.a * 256.0f;
 
 	// Get Diffuse Albedo and Specular
@@ -118,17 +117,16 @@ float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewR
 	// light direction
 	float3 L = normalize(-LightDirectionVS);
 
-	float nDotl = dot(L , N);
+	float nDotl = dot(L, N);
 
 	if(nDotl > 0)
 	{
 		float3 V = normalize(-positionVS);
 		float3 H = normalize(L + V);
-
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess) * specularAlbedo;
+	
+		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess);
 		final *= LightColor * nDotl;
 	}
-
 
 	return float4(final, 1.0f);
 }

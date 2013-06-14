@@ -99,6 +99,7 @@ private:
 
 	// Noise Texture
 	ID3D11ShaderResourceView* mNoiseSRV;
+	ID3D11ShaderResourceView* mBestFitNormalSRV;
 	
 	ID3D11SamplerState* mDiffuseSampler;
 	ID3D11SamplerState* mNoiseSampler;

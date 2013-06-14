@@ -2,9 +2,23 @@
 #define Utility_HLSL
 
 /**
+ * Normal encoding
+ */
+float3 EncodeNormal(in float3 normal)
+{
+	return normal * 0.5f + 0.5f;
+}
+
+float3 DecodeNormal(in float3 normal)
+{
+	return normal * 2.0f - 1.0f;
+}
+
+
+/**
  * @brief Convert clip space coord to texture uv coord.
  */
-float2 ConvertUV(float2 posCS)
+float2 ConvertUV(in float2 posCS)
 {
 	// Convert [-1, 1]x[1, -1] to [0, 1]x[0, 1]
 	return 0.5f * float2(posCS.x, -posCS.y) + float2(0.5f, 0.5f);
@@ -15,7 +29,7 @@ float2 ConvertUV(float2 posCS)
  *
  * @Param nonLinearDepth	depth from non-linear ZBuffer
  */
-float LinearizeDepth(float nonLinearDepth, float nearPlane, float farPlane)
+float LinearizeDepth(in float nonLinearDepth, in float nearPlane, in float farPlane)
 {	
 	return nearPlane * farPlane / (farPlane - (farPlane - nearPlane) * nonLinearDepth);
 }
@@ -26,7 +40,7 @@ float LinearizeDepth(float nonLinearDepth, float nearPlane, float farPlane)
  *
  * @param linearDepth    depth in view space
  */
-float3 PositionVSFromDepth(float3 lPosView, float linearDepth)
+float3 PositionVSFromDepth(in float3 lPosView, in float linearDepth)
 {
     // Clamp the view space position to the plane at Z = 1
 	float3 viewRay = float3(lPosView.xy / lPosView.z, 1.0f);
