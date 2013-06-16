@@ -9,6 +9,7 @@ cbuffer Light
 	float3 LightColor;
 	float3 LightPosVS;        // View space light position
 	float3 LightDirectionVS; 
+	float3 SpotFalloff;
 	float2 LightFalloff;   // begin and end
 };
 
@@ -115,7 +116,7 @@ float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewR
 	float3 specularAlbedo = tap1.aaa;
 
 	// light direction
-	float3 L = normalize(-LightDirectionVS);
+	float3 L = -LightDirectionVS;
 
 	float nDotl = dot(L, N);
 

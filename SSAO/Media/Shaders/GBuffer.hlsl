@@ -49,7 +49,7 @@ void CompressUnsignedNormalToNormalsBuffer(inout float3 vNormal)
   // scale the normal to get the best fit
   vNormal.rgb *= fFittingScale;
   // squeeze back to unsigned
-  vNormal.rgb = vNormal.rgb * .5h + .5h;
+  vNormal.rgb = vNormal.rgb * .5f + .5f;
 }
 
 GeometryVSOut GeometryVS(GeometryVSIn input)
@@ -68,7 +68,7 @@ void GeometryPS(GeometryVSOut input, out GBuffer outputGBuffer)
     float4 albedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
     float3 normal = input.oNormal;
      
-	const float Shininess = 50.0f;
+	const float Shininess = 80.0f;
     const float Specular = 0.5f;
 
 	CompressUnsignedNormalToNormalsBuffer(normal);

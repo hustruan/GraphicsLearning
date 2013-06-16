@@ -383,11 +383,13 @@
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
+    <ClCompile Include="Utility.cpp" />
     <ClInclude Include="LightAnimation.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
+    <ClInclude Include="Utility.h" />
     <None Include="DXUT\Optional\directx.ico" />
     <ClInclude Include="DXUT\Core\DXUT.h" />
     <ClInclude Include="DXUT\Core\DXUTDevice11.h" />
@@ -411,7 +413,7 @@
     <ClCompile Include="DXUT\Optional\DXUTsettingsdlg.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmesh.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
-    <None Include="Media\Shaders\DeferredRead.hlsl" />
+    <None Include="Media\Shaders\DeferredLighting.hlsl" />
     <None Include="Media\Shaders\DeferredRendering.hlsl" />
     <None Include="Media\Shaders\ForwardRendering.hlsl" />
     <None Include="Media\Shaders\FullQuadSprite.hlsl" />

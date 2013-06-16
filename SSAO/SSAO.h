@@ -19,6 +19,15 @@ class Texture2D;
 class Scene;
 class LightAnimation;
 
+enum LightCullTechnique
+{
+	Cull_Forward_None = 0,
+	Cull_Forward_PreZ_None,
+	Cull_Deferred_Volume,
+	Cull_Deferred_Quad,
+	Cull_Deferred_Tile,
+};
+
 class SSAO
 {
 public:
@@ -55,6 +64,8 @@ private:
 	void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
 private:
+	
+	bool mLighting;
 
 	UINT mGBufferWidth, mGBufferHeight; 
 
@@ -77,6 +88,7 @@ private:
 	std::vector<ID3D11ShaderResourceView*> mGBufferSRV;
 
 	// Deferred Shading Lit Buffer
+	shared_ptr<Texture2D> mLightAccumulateBuffer;
 	shared_ptr<Texture2D> mLitBuffer;
 	shared_ptr<Texture2D> mAOBuffer;
 
@@ -86,9 +98,14 @@ private:
 	shared_ptr<VertexShader> mDeferredDirectionalVS;
 	shared_ptr<PixelShader> mDeferredDirectionalPS;
 
+	shared_ptr<PixelShader> mDeferredDirectionalLightingPS;
+
 	shared_ptr<VertexShader> mDeferredPointOrSpotVS;
 	shared_ptr<PixelShader> mDeferredPointPS;
 	shared_ptr<PixelShader> mDeferredSpotPS;
+
+	shared_ptr<PixelShader> mDeferredPointLightingPS;
+	shared_ptr<PixelShader> mDeferredSpotLightingPS;
 
 	shared_ptr<VertexShader> mDebugVS;;
 	shared_ptr<PixelShader> mDebugPS;

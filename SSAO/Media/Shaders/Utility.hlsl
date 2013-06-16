@@ -71,7 +71,7 @@ float3 CalculateAmbiemtFresnel(in float3 specAlbedo, in float3 N, in float3 V)
 /**
  * @brief Computes the specular contribution of a light using normalized Blinn-Phong
  */
-float3 CalculateSpecular(in float3 N, in float3 H, in float specPower)
+float CalculateSpecular(in float3 N, in float3 H, in float specPower)
 {
 	float nDotH = saturate(dot(N, H));
     return pow(nDotH, specPower) * ((specPower + 2.0f) / 8.0f);
@@ -82,6 +82,11 @@ float3 CalculateSpecular(in float3 N, in float3 H, in float specPower)
 float CalculateAttenuation(in float dist, in float attenBegin, in float attenEnd)
 {
 	return saturate( (attenEnd-dist)/(attenEnd-attenBegin) );
+}
+
+float CalculateSpotCutoff(in float cosAngle, in float innerCos, in float outerCos, in float power)
+{
+	return pow( saturate((cosAngle-outerCos)/(innerCos-outerCos)), power );
 }
 
 //void CalculateBlinPhongBRDF(float3 normal, float3 lightDir, float3 viewDir, float3 lightIntensity, float specularPower, 

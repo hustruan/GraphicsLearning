@@ -7,6 +7,8 @@
 #include "LightAnimation.h"
 #include "Scene.h"
 
+#include "Utility.h"
+
 // NOTE: Must match layout of shader constant buffers
 
 __declspec(align(16))
@@ -34,34 +36,13 @@ struct LightCBuffer
 	Float4Align D3DXVECTOR3 LightColor;
 	Float4Align D3DXVECTOR3 LightPosVS;        // View space light position
 	Float4Align D3DXVECTOR3 LightDirectionVS; 
+	Float4Align D3DXVECTOR3 SpotFalloff;
 	Float4Align D3DXVECTOR2 LightFalloff;   // begin and end
 };
 #pragma warning( pop ) 
 
-namespace {
-
-D3DXVECTOR3 HueToRGB(float hue)
-{
-	float intPart;
-	float fracPart = modf(hue * 6.0f, &intPart);
-	int region = static_cast<int>(intPart);
-
-	switch (region) {
-	case 0: return D3DXVECTOR3(1.0f, fracPart, 0.0f);
-	case 1: return D3DXVECTOR3(1.0f - fracPart, 1.0f, 0.0f);
-	case 2: return D3DXVECTOR3(0.0f, 1.0f, fracPart);
-	case 3: return D3DXVECTOR3(0.0f, 1.0f - fracPart, 1.0f);
-	case 4: return D3DXVECTOR3(fracPart, 0.0f, 1.0f);
-	case 5: return D3DXVECTOR3(1.0f, 0.0f, 1.0f - fracPart);
-	};
-
-	return D3DXVECTOR3(0.0f, 0.0f, 0.0f);
-}
-
-}
-
 SSAO::SSAO( ID3D11Device* d3dDevice )
-	: mDepthBufferReadOnlyDSV(0)
+	: mDepthBufferReadOnlyDSV(0), mLighting(false)
 {
 	mFullQuadSprite = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\FullQuadSprite.hlsl", "FullQuadSpritePS", nullptr);
 
@@ -79,11 +60,21 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 	{
 		D3D10_SHADER_MACRO defines[] = {
 			{"PointLight", ""},
-			{"SpotLight", ""},
 			{0, 0}
 		};
 		mDeferredPointOrSpotVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
 		mDeferredPointPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingPointPS", nullptr);
+		mDeferredPointLightingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLighting.hlsl", "DeferredLightingPS", defines);
+	}
+
+	{
+		D3D10_SHADER_MACRO defines[] = {
+			{"SpotLight", ""},
+			{0, 0}
+		};
+
+		//mDeferredPointPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingPointPS", nullptr);
+		mDeferredSpotLightingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLighting.hlsl", "DeferredLightingPS", defines);
 	}
 	
 	{
@@ -93,6 +84,7 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		};
 		mDeferredDirectionalVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
 		mDeferredDirectionalPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingDirectionPS", nullptr);
+		mDeferredDirectionalLightingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLighting.hlsl", "DeferredLightingPS", defines);
 	}
 
 	// Create mesh vertex layout
@@ -315,7 +307,11 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 
 	// lit buffers
 	mLitBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
-		DXGI_FORMAT_R32G32B32A32_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+		DXGI_FORMAT_R16G16B16A16_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+
+	// deferred lighting accumulation buffer
+	mLightAccumulateBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
+		DXGI_FORMAT_R16G16B16A16_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 
 	mDepthBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
 		DXGI_FORMAT_R32_TYPELESS, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL);
@@ -333,7 +329,7 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 
 	// normals and depth
 	mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
-		DXGI_FORMAT_R8G8B8A8_UNORM, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+		DXGI_FORMAT_R8G8B8A8_UNORM , D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
 
 	/*mGBuffer.push_back(std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
 		DXGI_FORMAT_R16G16B16A16_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));*/
@@ -557,8 +553,10 @@ void SSAO::RenderSSAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 
 void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
 {
+	std::shared_ptr<Texture2D> &accumulateBuffer = mLighting ? mLightAccumulateBuffer : mLitBuffer;
+
 	const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
-	d3dDeviceContext->ClearRenderTargetView(mLitBuffer->GetRenderTargetView(), zeros);
+	d3dDeviceContext->ClearRenderTargetView(accumulateBuffer->GetRenderTargetView(), zeros);
 
 	// Set GBuffer, all light type needs it
 	d3dDeviceContext->PSSetShaderResources(0, static_cast<UINT>(mGBufferSRV.size()), &mGBufferSRV.front());
@@ -573,8 +571,13 @@ void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 	DrawPointLight(d3dDeviceContext, lights, viewerCamera);
 	DrawDirectionalLight(d3dDeviceContext, lights, viewerCamera);
 
-	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
-	DrawLightVolumeDebug(d3dDeviceContext, lights, viewerCamera);
+	/*d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
+	DrawLightVolumeDebug(d3dDeviceContext, lights, viewerCamera);*/
+
+	if (mLighting)
+	{
+		// final shading pass
+	}
 
 	// Cleanup (aka make the runtime happy)
 	d3dDeviceContext->VSSetShader(0, 0, 0);
@@ -629,6 +632,7 @@ void SSAO::DrawDirectionalLight( ID3D11DeviceContext* d3dDeviceContext, const Li
 		const D3DXVECTOR3& lightDiection = lights.mLights[idx].LightDirection;
 
 		D3DXVec3TransformNormal(&lightCBffer->LightDirectionVS, &lightDiection, viewerCamera.GetViewMatrix());
+		D3DXVec3Normalize(&lightCBffer->LightDirectionVS, &lightCBffer->LightDirectionVS);
 		lightCBffer->LightColor = lights.mLights[idx].LightColor;
 		d3dDeviceContext->Unmap(mLightConstants, 0);
 
@@ -691,6 +695,9 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 			D3DXVec3TransformCoord(&lightCBuffer->LightPosVS, &lightPosition, &cameraView);
 			lightCBuffer->LightColor = light.LightColor;
 			lightCBuffer->LightFalloff = light.LightFalloff;
+
+
+			CalculateLightBound(lightCBuffer->LightPosVS, lightRadius, viewerCamera.GetNearClip(), cameraProj(0,0), cameraProj(1,1));
 
 			d3dDeviceContext->Unmap(mLightConstants, 0);
 		}

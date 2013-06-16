@@ -97,13 +97,13 @@
     <None Include="Media\Shaders\Utility.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\DeferredRead.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Media\Shaders\FullQuadSprite.hlsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Media\Shaders\ForwardRendering.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DeferredLighting.hlsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
@@ -114,6 +114,7 @@
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="LightAnimation.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="Utility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
@@ -127,6 +128,7 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="LightAnimation.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="Utility.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

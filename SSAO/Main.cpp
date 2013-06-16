@@ -164,8 +164,8 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 {
 	g_Camera.FrameMove(fElapsedTime);
 
-	//if (g_LightAnimation)
-		//g_LightAnimation->Move(fElapsedTime);
+	if (g_LightAnimation)
+		g_LightAnimation->Move(fElapsedTime);
 }
 
 
@@ -387,15 +387,13 @@ void InitScene(ID3D11Device* d3dDevice)
 
 	D3DXMATRIX world;
 
-	HRESULT hr;
-
 	SceneSelection scene = static_cast<SceneSelection>(PtrToUlong(g_SceneSelectCombo->GetSelectedData()));
 	switch (scene)
 	{
 	case Scene_Power_Plant: 
 		{
 			g_LightAnimation->LoadLights(".\\Media\\Animation.txt");
-			//g_LightAnimation->RandonPointLight(10);
+			g_LightAnimation->RandonPointLight(100);
 
 			sceneScaling = 1.0f;
 			D3DXMatrixScaling(&world, sceneScaling, sceneScaling, sceneScaling);
