@@ -14,7 +14,6 @@ float3 DecodeNormal(in float3 normal)
 	return normal * 2.0f - 1.0f;
 }
 
-
 /**
  * @brief Convert clip space coord to texture uv coord.
  */
@@ -82,6 +81,11 @@ float3 CalculateSpecular(in float3 N, in float3 H, in float specPower)
 float CalculateAttenuation(in float dist, in float attenBegin, in float attenEnd)
 {
 	return saturate( (attenEnd-dist)/(attenEnd-attenBegin) );
+}
+
+float CalculateSpotCutoff(in float cosAngle, in float innerCos, in float outerCos, in float power)
+{
+	return pow( saturate((cosAngle-outerCos)/(innerCos-outerCos)), power );
 }
 
 //void CalculateBlinPhongBRDF(float3 normal, float3 lightDir, float3 viewDir, float3 lightIntensity, float specularPower, 
