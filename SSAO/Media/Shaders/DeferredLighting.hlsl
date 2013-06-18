@@ -16,7 +16,7 @@ cbuffer Light
 SamplerState PointSampler : register(s0);
 
 Texture2D GBuffer0    : register(t0);           // Normal + Shininess
-Texture2D DepthBuffer : register(t2);
+Texture2D DepthBuffer : register(t1);
 
 // deferred lighting pass
 float4 DeferredLightingPS(

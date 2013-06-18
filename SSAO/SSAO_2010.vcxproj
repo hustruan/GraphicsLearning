@@ -415,6 +415,7 @@
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
     <None Include="Media\Shaders\DeferredLighting.hlsl" />
     <None Include="Media\Shaders\DeferredRendering.hlsl" />
+    <None Include="Media\Shaders\EdgeDetect.hlsl" />
     <None Include="Media\Shaders\ForwardRendering.hlsl" />
     <None Include="Media\Shaders\FullQuadSprite.hlsl" />
     <None Include="Media\Shaders\FullScreenTriangle.hlsl" />

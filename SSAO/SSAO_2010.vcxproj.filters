@@ -106,6 +106,9 @@
     <None Include="Media\Shaders\DeferredLighting.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Media\Shaders\EdgeDetect.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />

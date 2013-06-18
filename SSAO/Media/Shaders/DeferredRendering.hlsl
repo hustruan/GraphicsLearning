@@ -104,7 +104,11 @@ float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewR
 	float3 positionVS = PositionVSFromDepth(oViewRay, linearDepth);
 
 	// Fetch GBuffer
-	float4 tap0 = GBuffer0.Sample(PointSampler, oTex);
+	float4 tap0 = 
+
+
+
+
 	float4 tap1 = GBuffer1.Sample(PointSampler, oTex);
 
 	// Decode view space normal
