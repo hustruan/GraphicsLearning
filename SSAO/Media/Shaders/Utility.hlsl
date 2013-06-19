@@ -69,12 +69,19 @@ float3 CalculateAmbiemtFresnel(in float3 specAlbedo, in float3 N, in float3 V)
 }
 
 /**
- * @brief Computes the specular contribution of a light using normalized Blinn-Phong
+ * @brief Computes the specular contribution of a light
  */
 float CalculateSpecular(in float3 N, in float3 H, in float specPower)
 {
-	float nDotH = saturate(dot(N, H));
-    return pow(nDotH, specPower) * ((specPower + 2.0f) / 8.0f);
+    return pow(saturate(dot(N, H)), specPower);
+}
+
+/**
+ * @brief Computes the specular contribution of a light using normalized Blinn-Phong
+ */
+float CalculateSpecularNormalized(in float3 N, in float3 H, in float specPower)
+{
+	return pow(saturate(dot(N, H)), specPower) * ((specPower + 2.0f) / 8.0f);
 }
 
 /**
@@ -98,7 +105,7 @@ float CalculateSpotCutoff(in float cosAngle, in float innerCos, in float outerCo
  */
  float Luminance(in float3 color)
  {
-	return dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f)
+	return dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f));
  }
 
 #endif

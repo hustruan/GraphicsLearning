@@ -31,10 +31,10 @@ enum LightCullTechnique
 class SSAO
 {
 public:
-
-public:
 	SSAO(ID3D11Device* d3dDevice);
 	~SSAO(void);
+
+	void SetLightPrePass(bool b) { mLighting = b; }
 
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
 
@@ -61,9 +61,9 @@ private:
 
 	void DrawDirectionalLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
-	void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
+	//void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
-	void PostProcess(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
+	void PostProcess(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth, const D3D11_VIEWPORT* viewport);
 
 	void EdgeAA(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
 
@@ -102,14 +102,19 @@ private:
 	shared_ptr<VertexShader> mDeferredDirectionalVS;
 	shared_ptr<PixelShader> mDeferredDirectionalPS;
 
-	shared_ptr<PixelShader> mDeferredDirectionalLightingPS;
-
 	shared_ptr<VertexShader> mDeferredPointOrSpotVS;
 	shared_ptr<PixelShader> mDeferredPointPS;
 	shared_ptr<PixelShader> mDeferredSpotPS;
 
-	shared_ptr<PixelShader> mDeferredPointLightingPS;
-	shared_ptr<PixelShader> mDeferredSpotLightingPS;
+	// classic deferred shading, for each light type
+	shared_ptr<VertexShader> mDeferredShadingVS[3];
+	shared_ptr<PixelShader> mDeferredShadingPS[3];
+
+	// deferred lighting, lighting pass
+	shared_ptr<PixelShader> mDeferredLightingPS[3];
+
+	// deferred lighting, shading pass
+	shared_ptr<PixelShader> mDeferredLightingShadingPS;
 
 	shared_ptr<VertexShader> mDebugVS;;
 	shared_ptr<PixelShader> mDebugPS;
@@ -135,6 +140,7 @@ private:
 	ID3D11DepthStencilState* mDepthGreaterState;
 	ID3D11DepthStencilState* mDepthLEQualState;
 	ID3D11DepthStencilState* mDepthDisableState;   // Depth Disable
+	ID3D11DepthStencilState* mVolumeStencilState;  // Stencil Pass for local light volume optimization
 
 	ID3D11BlendState* mGeometryBlendState;
 	ID3D11BlendState* mLightingBlendState;

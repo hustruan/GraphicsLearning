@@ -4,8 +4,9 @@
 cbuffer Light
 {
 	float3 LightColor;
-	float3 LightPosVS;        // View space light position
-	float3 LightDirectionVS; 
+	float3 LightPosition;        // View space light position
+	float3 LightDirection; 
+	float3 SpotFalloff;
 	float2 LightFalloff;   // begin and end
 };
 
@@ -47,7 +48,7 @@ float4 ForwardPS( ForwardVSOut input ) : SV_Target0
 	const float3 specularAlbedo = float3(0.5f, 0.5f, 0.5f);
 
 	float3 N = normalize(input.oNormal);
-	float3 L = normalize(-LightDirectionVS);
+	float3 L = normalize(-LightDirection);
 	
 	float nDotl = dot(L, N);
 
@@ -59,7 +60,7 @@ float4 ForwardPS( ForwardVSOut input ) : SV_Target0
 	    float3 diffuseAlbedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
 
 		
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess);
+		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
 		final *= LightColor * nDotl;
 	}
 

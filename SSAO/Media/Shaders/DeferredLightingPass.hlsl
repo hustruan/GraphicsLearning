@@ -7,8 +7,8 @@
 cbuffer Light
 {
 	float3 LightColor;
-	float3 LightPosVS;        // View space light position
-	float3 LightDirectionVS; 
+	float3 LightPosition;        // View space light position
+	float3 LightDirection; 
 	float3 SpotFalloff;
 	float2 LightFalloff;   // begin and end
 };
@@ -29,7 +29,6 @@ SamplerState PointSampler : register(s0);
 Texture2D GBuffer0              : register(t0);           // Normal + Shininess
 Texture2D GBuffer1              : register(t1);
 Texture2D DepthBuffer           : register(t2);
-Texture2D LightAccumulateBuffer : register(t3);
 
 // deferred lighting pass
 float4 DeferredLightingPS(
@@ -60,7 +59,7 @@ float4 DeferredLightingPS(
 
 #if defined(PointLight) || defined(SpotLight)
 	
-	L = LightPosVS - positionVS;
+	L = LightPosition - positionVS;
 
 	float dist = length(L);
 	attenuation = CalculateAttenuation(dist, LightFalloff.x, LightFalloff.y);
@@ -69,11 +68,11 @@ float4 DeferredLightingPS(
 	L /= dist;
 
 #elif defined(DirectionalLight)
-	L = -LightDirectionVS;
+	L = -LightDirection;
 #endif
 
 #if defined(SpotLight)
-	float cosAngle = dot( -L, LightDirectionVS ); 
+	float cosAngle = dot( -L, LightDirection ); 
 	attenuation *= CalculateSpotCutoff(cosAngle, SpotFalloff.x, SpotFalloff.y, SpotFalloff.z);
 #endif
 
@@ -101,37 +100,5 @@ float4 DeferredLightingPS(
 
 	return final;
 }
-
-float4 DeferredShadingPS(in float2 iTex : TEXCOORD0, in float3 iViewRay : TEXCOORD1) : SV_Target0
-{
-	float3 final = 0;
-
-	// Fetch GBuffer
-	float4 tap0 = GBuffer0.Sample(PointSampler, iTex);
-	float4 tap1 = GBuffer1.Sample(PointSampler, iTex);
-	
-	// Decode view space normal
-	float3 N = normalize(DecodeNormal( tap0.rgb )); 
-	float3 V = normalize(-iViewRay);
-
-	// Get Diffuse Albedo and Specular
-	float3 diffuseAlbedo = tap1.rgb;
-	float3 specularAlbedo = tap1.aaa;
-	float  specularPower = tap0.a * 256.0f;
-
-	float4 lightColor = LightAccumulateBuffer.Sample(PointSampler, iTex);
-
-	float3 diffueLight = lightColor.rgb;
-	float3 specularLight = lightColor.a / (Luminance(lightColor.rgb) + 1e-6f) * lightColor.rgb;
-
-	// Approximate fresnel by N and V
-	float3 fresnelTerm = CalculateAmbiemtFresnel(specularAlbedo, N, V);
-	
-	final =  diffueLight * diffuseAlbedo + ((specularPower + 2.0f) / 8.0f) * fresnelTerm * specularLight;
-
-	return float4(final, 1,0);
-}
-
- 
 
 #endif

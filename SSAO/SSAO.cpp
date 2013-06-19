@@ -34,10 +34,10 @@ struct SSAOParams
 struct LightCBuffer
 {
 	Float4Align D3DXVECTOR3 LightColor;
-	Float4Align D3DXVECTOR3 LightPosVS;        // View space light position
-	Float4Align D3DXVECTOR3 LightDirectionVS; 
+	Float4Align D3DXVECTOR3 LightPosition;        // View space light position
+	Float4Align D3DXVECTOR3 LightDirection;       // View space normalized direction 
 	Float4Align D3DXVECTOR3 SpotFalloff;
-	Float4Align D3DXVECTOR2 LightFalloff;   // begin and end
+	Float4Align D3DXVECTOR2 LightFalloff;         // begin and end
 };
 #pragma warning( pop ) 
 
@@ -54,19 +54,18 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 
 	mEdgeAAPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\EdgeDetect.hlsl", "DL_GetEdgeWeight", nullptr);
 
-	{
-		mForwardDirectionalVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardVS", nullptr);
-		mForwardDirectionalPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardPS", nullptr);
-	}
+	mForwardDirectionalVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardVS", nullptr);
+	mForwardDirectionalPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardPS", nullptr);
+	
 
 	{
 		D3D10_SHADER_MACRO defines[] = {
 			{"PointLight", ""},
 			{0, 0}
 		};
-		mDeferredPointOrSpotVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
-		mDeferredPointPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingPointPS", nullptr);
-		mDeferredPointLightingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLighting.hlsl", "DeferredLightingPS", defines);
+		mDeferredShadingVS[LT_PointLight] = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
+		mDeferredShadingPS[LT_PointLight] = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingPS", defines);
+		mDeferredLightingPS[LT_PointLight] = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLightingPass.hlsl", "DeferredLightingPS", defines);
 	}
 
 	{
@@ -75,19 +74,23 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 			{0, 0}
 		};
 
+		mDeferredShadingVS[LT_SpotLight] = mDeferredShadingVS[LT_PointLight];
 		//mDeferredPointPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingPointPS", nullptr);
-		mDeferredSpotLightingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLighting.hlsl", "DeferredLightingPS", defines);
+		mDeferredLightingPS[LT_SpotLight] = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLightingPass.hlsl", "DeferredLightingPS", defines);
 	}
-	
+
 	{
 		D3D10_SHADER_MACRO defines[] = {
 			{"DirectionalLight", ""},
 			{0, 0}
 		};
-		mDeferredDirectionalVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
-		mDeferredDirectionalPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingDirectionPS", nullptr);
-		mDeferredDirectionalLightingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLighting.hlsl", "DeferredLightingPS", defines);
+		mDeferredShadingVS[LT_DirectionalLigt] = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
+		mDeferredShadingPS[LT_DirectionalLigt] = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingPS", defines);
+		mDeferredLightingPS[LT_DirectionalLigt] = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLightingPass.hlsl", "DeferredLightingPS", defines);
 	}
+	
+	// Deferred light shading pass
+	mDeferredLightingShadingPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredShadingPass.hlsl", "DeferredShadingPS", nullptr);
 
 	// Create mesh vertex layout
 	{	
@@ -116,6 +119,9 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		mLightProxyVertexLayout = CreateVertexLayout(d3dDevice, layout, ARRAYSIZE(layout),  L".\\Media\\Shaders\\DeferredRendering.hlsl", "DeferredRenderingVS", defines);
 		DXUT_SetDebugName(mLightProxyVertexLayout, "mLightProxyVertexLayout");
 	}
+
+	 //mDebugVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DebugPointLightVS", nullptr);
+	//mDebugPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DebugPointLightPS", nullptr);
 
 	// Create standard rasterizer state, cull back face
 	{
@@ -166,6 +172,25 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 		d3dDevice->CreateDepthStencilState(&desc, &mDepthLEQualState);
 		DXUT_SetDebugName(mDepthLEQualState, "mDepthLEQualState");
+	}
+
+	{
+		CD3D11_DEPTH_STENCIL_DESC desc(D3D11_DEFAULT);
+		desc.DepthEnable = TRUE;
+		desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+		desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+		desc.StencilEnable = TRUE;
+		desc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
+		desc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+		desc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+		desc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+		desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
+		desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+		desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+		desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+		d3dDevice->CreateDepthStencilState(&desc, &mVolumeStencilState);
+		DXUT_SetDebugName(mVolumeStencilState, "mVolumeStencilState");
 	}
 
 	// Create geometry phase blend state
@@ -250,11 +275,6 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		
 		V(mPointLightProxy->Create( d3dDevice, L".\\Media\\PointLightProxy.sdkmesh"));
 		V(mSpotLightProxy->Create( d3dDevice, L".\\Media\\SpotLightProxy.sdkmesh"));
-
-		if (!mPointLightProxy->IsLoaded())
-		{
-			throw std::exception("Error");
-		}
 	}
 
 	// Load noise texture
@@ -263,9 +283,6 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 
 	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\BestFitNormal.dds", NULL, NULL, &mBestFitNormalSRV, NULL );
 	DXUT_SetDebugName(mNoiseSRV, "mBestFitNormalSRV");
-
-	mDebugVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DebugPointLightVS", nullptr);
-	mDebugPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredRendering.hlsl", "DebugPointLightPS", nullptr);
 }
 
 SSAO::~SSAO(void)
@@ -284,6 +301,7 @@ SSAO::~SSAO(void)
 	SAFE_RELEASE(mDepthDisableState);
 	SAFE_RELEASE(mDepthLEQualState);
 	SAFE_RELEASE(mDepthGreaterState);
+	SAFE_RELEASE(mVolumeStencilState);
 
 	SAFE_RELEASE(mPerFrameConstants);
 	SAFE_RELEASE(mAOParamsConstants);
@@ -374,8 +392,8 @@ void SSAO::RenderForward( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTar
 	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
 	d3dDeviceContext->OMSetRenderTargets(1, &backBuffer, backDepth);
 
-	const D3DXMATRIXA16& cameraProj = *viewerCamera.GetProjMatrix();
-	const D3DXMATRIXA16& cameraView = *viewerCamera.GetViewMatrix();
+	const D3DXMATRIX& cameraProj = *viewerCamera.GetProjMatrix();
+	const D3DXMATRIX& cameraView = *viewerCamera.GetViewMatrix();
 	
 	// Find first directional light index
 	size_t idx = 0;
@@ -390,15 +408,15 @@ void SSAO::RenderForward( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTar
 		d3dDeviceContext->Map(mLightConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 		LightCBuffer* lightCBffer = static_cast<LightCBuffer*>(mappedResource.pData);	
 
-		D3DXVec3TransformNormal(&lightCBffer->LightDirectionVS, &lightDiection, viewerCamera.GetViewMatrix());
+		D3DXVec3TransformNormal(&lightCBffer->LightDirection, &lightDiection, &cameraView);
 		lightCBffer->LightColor = lights.mLights[idx].LightColor;
 		d3dDeviceContext->Unmap(mLightConstants, 0);
 
 		for (size_t i = 0; i < scene.mSceneMeshesOpaque.size(); ++i)
 		{
 			// Compute composite matrices
-			const D3DXMATRIXA16 WorldView = scene.mSceneMeshesOpaque[i].World * cameraView;
-			const D3DXMATRIXA16 WorldViewProj = WorldView * cameraProj;
+			const D3DXMATRIX WorldView = scene.mSceneMeshesOpaque[i].World * cameraView;
+			const D3DXMATRIX WorldViewProj = WorldView * cameraProj;
 
 			// Fill per frame constants
 			D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -427,7 +445,7 @@ void SSAO::Render( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView
 	ComputeShading(d3dDeviceContext, lights, viewerCamera, viewport);
 
 	// Post-Process
-	PostProcess(d3dDeviceContext, backBuffer, viewport);
+	PostProcess(d3dDeviceContext, backBuffer, backDepth, viewport);
 }
 
 void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, const Scene& scene, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
@@ -458,15 +476,15 @@ void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, const Scene& sc
 	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
 	d3dDeviceContext->OMSetRenderTargets(mGBufferRTV.size(), &mGBufferRTV[0], mDepthBuffer->GetDepthStencilView());
 
-	const D3DXMATRIXA16& cameraProj = *viewerCamera.GetProjMatrix();
-	const D3DXMATRIXA16& cameraView = *viewerCamera.GetViewMatrix();
+	const D3DXMATRIX& cameraProj = *viewerCamera.GetProjMatrix();
+	const D3DXMATRIX& cameraView = *viewerCamera.GetViewMatrix();
 	const D3DXVECTOR4 cameraNearFar(viewerCamera.GetNearClip(), viewerCamera.GetFarClip(), 0.0f, 0.0f);
 	
 	for (size_t i = 0; i < scene.mSceneMeshesOpaque.size(); ++i)
 	{
 		// Compute composite matrices
-		const D3DXMATRIXA16 WorldView = scene.mSceneMeshesOpaque[i].World * cameraView;
-		const D3DXMATRIXA16 WorldViewProj = WorldView * cameraProj;
+		const D3DXMATRIX WorldView = scene.mSceneMeshesOpaque[i].World * cameraView;
+		const D3DXMATRIX WorldViewProj = WorldView * cameraProj;
 
 		// Fill per frame constants
 		{
@@ -548,20 +566,42 @@ void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 
 	d3dDeviceContext->RSSetViewports(1, viewport);
 
-	ID3D11RenderTargetView * renderTargets[1] = { mLitBuffer->GetRenderTargetView() };
+	ID3D11RenderTargetView * renderTargets[1] = { accumulateBuffer->GetRenderTargetView() };
 	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, mDepthBufferReadOnlyDSV);
 	d3dDeviceContext->OMSetBlendState(mLightingBlendState, 0, 0xFFFFFFFF);
 
 	DrawPointLight(d3dDeviceContext, lights, viewerCamera);
 	DrawDirectionalLight(d3dDeviceContext, lights, viewerCamera);
 
-	/*d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
-	DrawLightVolumeDebug(d3dDeviceContext, lights, viewerCamera);*/
-
 	if (mLighting)
 	{
 		// final shading pass
+		const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
+		d3dDeviceContext->ClearRenderTargetView(mLitBuffer->GetRenderTargetView(), zeros);
+
+		d3dDeviceContext->IASetInputLayout(0);
+		d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
+
+		d3dDeviceContext->VSSetConstantBuffers(0, 1, &mPerFrameConstants);	
+		d3dDeviceContext->VSSetShader(mDeferredShadingVS[LT_DirectionalLigt]->GetShader(), 0, 0);
+
+		ID3D11RenderTargetView * renderTargets[1] = { mLitBuffer->GetRenderTargetView() };
+		d3dDeviceContext->OMSetRenderTargets(1, renderTargets, nullptr);
+		d3dDeviceContext->OMSetDepthStencilState(mDepthDisableState, 0);
+
+		ID3D11ShaderResourceView* srv[3] = { mGBufferSRV[0],  mGBufferSRV[1], mLightAccumulateBuffer->GetShaderResourceView() };
+		d3dDeviceContext->PSSetShaderResources(0, 3, srv);
+		d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
+		d3dDeviceContext->PSSetShader(mDeferredLightingShadingPS->GetShader(), 0, 0);
+
+		d3dDeviceContext->RSSetState(mRasterizerState);
+	
+		d3dDeviceContext->Draw(3, 0);
 	}
+
+	/*d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
+	DrawLightVolumeDebug(d3dDeviceContext, lights, viewerCamera);*/
 
 	// Cleanup (aka make the runtime happy)
 	d3dDeviceContext->VSSetShader(0, 0, 0);
@@ -580,11 +620,12 @@ void SSAO::DrawDirectionalLight( ID3D11DeviceContext* d3dDeviceContext, const Li
 	d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
 
 	d3dDeviceContext->VSSetConstantBuffers(0, 1, &mPerFrameConstants);	
-	d3dDeviceContext->VSSetShader(mDeferredDirectionalVS->GetShader(), 0, 0);
+	d3dDeviceContext->VSSetShader(mDeferredShadingVS[LT_DirectionalLigt]->GetShader(), 0, 0);
 
 	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
 	d3dDeviceContext->PSSetConstantBuffers(1, 1, &mLightConstants);
-	d3dDeviceContext->PSSetShader(mDeferredDirectionalPS->GetShader(), 0, 0);
+	d3dDeviceContext->PSSetShader(
+		mLighting ? mDeferredLightingPS[LT_DirectionalLigt]->GetShader() : mDeferredShadingPS[LT_DirectionalLigt]->GetShader(), 0, 0);
 
 	d3dDeviceContext->RSSetState(mRasterizerState);
 	d3dDeviceContext->OMSetDepthStencilState(mDepthDisableState, 0);
@@ -615,8 +656,8 @@ void SSAO::DrawDirectionalLight( ID3D11DeviceContext* d3dDeviceContext, const Li
 
 		const D3DXVECTOR3& lightDiection = lights.mLights[idx].LightDirection;
 
-		D3DXVec3TransformNormal(&lightCBffer->LightDirectionVS, &lightDiection, viewerCamera.GetViewMatrix());
-		D3DXVec3Normalize(&lightCBffer->LightDirectionVS, &lightCBffer->LightDirectionVS);
+		D3DXVec3TransformNormal(&lightCBffer->LightDirection, &lightDiection, viewerCamera.GetViewMatrix());
+		D3DXVec3Normalize(&lightCBffer->LightDirection, &lightCBffer->LightDirection);
 		lightCBffer->LightColor = lights.mLights[idx].LightColor;
 		d3dDeviceContext->Unmap(mLightConstants, 0);
 
@@ -628,13 +669,13 @@ void SSAO::DrawDirectionalLight( ID3D11DeviceContext* d3dDeviceContext, const Li
 
 void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera )
 {
-	const D3DXMATRIXA16& cameraProj = *viewerCamera.GetProjMatrix();
-	const D3DXMATRIXA16& cameraView = *viewerCamera.GetViewMatrix();
+	const D3DXMATRIX& cameraProj = *viewerCamera.GetProjMatrix();
+	const D3DXMATRIX& cameraView = *viewerCamera.GetViewMatrix();
 
 	d3dDeviceContext->IASetInputLayout(mLightProxyVertexLayout);
 
-	d3dDeviceContext->VSSetShader(mDeferredPointOrSpotVS->GetShader(), 0, 0);
-	d3dDeviceContext->PSSetShader(mDeferredPointPS->GetShader(), 0, 0);
+	d3dDeviceContext->VSSetShader(mDeferredShadingVS[LT_PointLight]->GetShader(), 0, 0);
+	d3dDeviceContext->PSSetShader(mLighting ? mDeferredLightingPS[LT_PointLight]->GetShader() : mDeferredShadingPS[LT_PointLight]->GetShader(), 0, 0);
 
 	size_t idx = 0;
 	while(idx < lights.mLights.size() && lights.mLights[idx].LightType != LT_PointLight) idx++;
@@ -646,15 +687,11 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 		float lightRadius = light.LightFalloff.y;  // Attenuation End
 		const D3DXVECTOR3& lightPosition = light.LightPosition;
 
-		D3DXMATRIXA16 world;
+		D3DXMATRIX world;
 		D3DXMatrixScaling(&world, lightRadius, lightRadius, lightRadius);   // Scale
 		world._41 = lightPosition.x;
 		world._42 = lightPosition.y;
 		world._43 = lightPosition.z;         // translation
-
-		// Compute composite matrices
-		const D3DXMATRIXA16 WorldView = world * cameraView;
-		const D3DXMATRIXA16 WorldViewProj = WorldView * cameraProj;
 
 		// Fill per frame constants
 		{
@@ -663,8 +700,8 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 			PerFrameConstants* constants = static_cast<PerFrameConstants *>(mappedResource.pData);
 
 			// Only need those two
-			constants->WorldView = WorldView;
-			constants->WorldViewProj = WorldViewProj;
+			constants->WorldView = world * cameraView;
+			constants->WorldViewProj = constants->WorldView * cameraProj;
 			constants->NearFar = D3DXVECTOR4(viewerCamera.GetNearClip(), viewerCamera.GetFarClip(), 0.0f, 0.0f);
 
 			d3dDeviceContext->Unmap(mPerFrameConstants, 0);
@@ -676,12 +713,11 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 			d3dDeviceContext->Map(mLightConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 			LightCBuffer* lightCBuffer = static_cast<LightCBuffer*>(mappedResource.pData);
 
-			D3DXVec3TransformCoord(&lightCBuffer->LightPosVS, &lightPosition, &cameraView);
+			D3DXVec3TransformCoord(&lightCBuffer->LightPosition, &lightPosition, &cameraView);
 			lightCBuffer->LightColor = light.LightColor;
 			lightCBuffer->LightFalloff = light.LightFalloff;
 
-
-			CalculateLightBound(lightCBuffer->LightPosVS, lightRadius, viewerCamera.GetNearClip(), cameraProj(0,0), cameraProj(1,1));
+			CalculateLightBound(lightCBuffer->LightPosition, lightRadius, viewerCamera.GetNearClip(), cameraProj(0,0), cameraProj(1,1));
 
 			d3dDeviceContext->Unmap(mLightConstants, 0);
 		}
@@ -711,76 +747,72 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 	}	
 }
 
-void SSAO::DrawLightVolumeDebug( ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera )
-{
-	const D3DXMATRIXA16& cameraProj = *viewerCamera.GetProjMatrix();
-	const D3DXMATRIXA16& cameraView = *viewerCamera.GetViewMatrix();
-
-	d3dDeviceContext->IASetInputLayout(mLightProxyVertexLayout);
-
-	d3dDeviceContext->VSSetShader(mDebugVS->GetShader(), 0, 0);
-	d3dDeviceContext->PSSetShader(mDebugPS->GetShader(), 0, 0);
-
-	size_t idx = 0;
-	while(idx < lights.mLights.size() && lights.mLights[idx].LightType != LT_PointLight) idx++;
-
-	while(idx < lights.mLights.size() && lights.mLights[idx].LightType == LT_PointLight)
-	{
-		const LightAnimation::Light& light = lights.mLights[idx];
-
-		float lightRadius = light.LightFalloff.y / 10.0f;  // Attenuation End
-		const D3DXVECTOR3& lightPosition = light.LightPosition;
-
-		D3DXMATRIXA16 world;
-		D3DXMatrixScaling(&world, lightRadius, lightRadius, lightRadius);   // Scale
-		world._41 = lightPosition.x;
-		world._42 = lightPosition.y;
-		world._43 = lightPosition.z;         // translation
-
-		// Compute composite matrices
-		const D3DXMATRIXA16 WorldView = world * cameraView;
-		const D3DXMATRIXA16 WorldViewProj = WorldView * cameraProj;
-
-		// Fill per frame constants
-		{
-			D3D11_MAPPED_SUBRESOURCE mappedResource;
-			d3dDeviceContext->Map(mPerFrameConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-			PerFrameConstants* constants = static_cast<PerFrameConstants *>(mappedResource.pData);
-
-			// Only need those two
-			constants->WorldView = WorldView;
-			constants->WorldViewProj = WorldViewProj;
-			constants->NearFar = D3DXVECTOR4(viewerCamera.GetNearClip(), viewerCamera.GetFarClip(), 0.0f, 0.0f);
-
-			d3dDeviceContext->Unmap(mPerFrameConstants, 0);
-		}
-
-		// Fill PointLight constants
-		{
-			D3D11_MAPPED_SUBRESOURCE mappedResource;
-			d3dDeviceContext->Map(mLightConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-			LightCBuffer* lightCBuffer = static_cast<LightCBuffer*>(mappedResource.pData);
-
-			D3DXVec3TransformCoord(&lightCBuffer->LightPosVS, &lightPosition, &cameraView);
-			lightCBuffer->LightColor = light.LightColor;
-			lightCBuffer->LightFalloff = light.LightFalloff;
-
-			d3dDeviceContext->Unmap(mLightConstants, 0);
-		}
-
-		d3dDeviceContext->VSSetConstantBuffers(0, 1, &mPerFrameConstants);	
-
-		d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
-		d3dDeviceContext->PSSetConstantBuffers(1, 1, &mLightConstants);
-
-		d3dDeviceContext->OMSetDepthStencilState(mDepthLEQualState, 0);
-		d3dDeviceContext->RSSetState(mRasterizerState);
-
-		mPointLightProxy->Render(d3dDeviceContext);
-
-		idx++;
-	}	
-}
+//void SSAO::DrawLightVolumeDebug( ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera )
+//{
+//	const D3DXMATRIX& cameraProj = *viewerCamera.GetProjMatrix();
+//	const D3DXMATRIX& cameraView = *viewerCamera.GetViewMatrix();
+//
+//	d3dDeviceContext->IASetInputLayout(mLightProxyVertexLayout);
+//
+//	d3dDeviceContext->VSSetShader(mDebugVS->GetShader(), 0, 0);
+//	d3dDeviceContext->PSSetShader(mDebugPS->GetShader(), 0, 0);
+//
+//	size_t idx = 0;
+//	while(idx < lights.mLights.size() && lights.mLights[idx].LightType != LT_PointLight) idx++;
+//
+//	while(idx < lights.mLights.size() && lights.mLights[idx].LightType == LT_PointLight)
+//	{
+//		const LightAnimation::Light& light = lights.mLights[idx];
+//
+//		float lightRadius = light.LightFalloff.y / 10.0f;  // Attenuation End
+//		const D3DXVECTOR3& lightPosition = light.LightPosition;
+//
+//		D3DXMATRIX world;
+//		D3DXMatrixScaling(&world, lightRadius, lightRadius, lightRadius);   // Scale
+//		world._41 = lightPosition.x;
+//		world._42 = lightPosition.y;
+//		world._43 = lightPosition.z;         // translation
+//
+//		// Fill per frame constants
+//		{
+//			D3D11_MAPPED_SUBRESOURCE mappedResource;
+//			d3dDeviceContext->Map(mPerFrameConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+//			PerFrameConstants* constants = static_cast<PerFrameConstants *>(mappedResource.pData);
+//
+//			// Only need those two
+//			constants->WorldView = world * cameraView;
+//			constants->WorldViewProj = constants->WorldView * cameraProj;
+//			constants->NearFar = D3DXVECTOR4(viewerCamera.GetNearClip(), viewerCamera.GetFarClip(), 0.0f, 0.0f);
+//
+//			d3dDeviceContext->Unmap(mPerFrameConstants, 0);
+//		}
+//
+//		// Fill PointLight constants
+//		{
+//			D3D11_MAPPED_SUBRESOURCE mappedResource;
+//			d3dDeviceContext->Map(mLightConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+//			LightCBuffer* lightCBuffer = static_cast<LightCBuffer*>(mappedResource.pData);
+//
+//			D3DXVec3TransformCoord(&lightCBuffer->LightPosition, &lightPosition, &cameraView);
+//			lightCBuffer->LightColor = light.LightColor;
+//			lightCBuffer->LightFalloff = light.LightFalloff;
+//
+//			d3dDeviceContext->Unmap(mLightConstants, 0);
+//		}
+//
+//		d3dDeviceContext->VSSetConstantBuffers(0, 1, &mPerFrameConstants);	
+//
+//		d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
+//		d3dDeviceContext->PSSetConstantBuffers(1, 1, &mLightConstants);
+//
+//		d3dDeviceContext->OMSetDepthStencilState(mDepthLEQualState, 0);
+//		d3dDeviceContext->RSSetState(mRasterizerState);
+//
+//		mPointLightProxy->Render(d3dDeviceContext);
+//
+//		idx++;
+//	}	
+//}
 
 void SSAO::EdgeAA( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport )
 {
@@ -813,29 +845,30 @@ void SSAO::EdgeAA( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView
 	d3dDeviceContext->Draw(3, 0);
 }
 
-void SSAO::PostProcess( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport )
+void SSAO::PostProcess( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth, const D3D11_VIEWPORT* viewport )
 {
-	EdgeAA(d3dDeviceContext, backBuffer, viewport);
+	//EdgeAA(d3dDeviceContext, backBuffer, viewport);
 
-	//// Render full sreen quad
-	//d3dDeviceContext->IASetInputLayout(0);
-	//d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	//d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
+	// Render full sreen quad
+	d3dDeviceContext->IASetInputLayout(0);
+	d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
 
-	//d3dDeviceContext->VSSetShader(mFullScreenTriangleVS->GetShader(), 0, 0);
+	d3dDeviceContext->VSSetShader(mFullScreenTriangleVS->GetShader(), 0, 0);
 
-	//d3dDeviceContext->RSSetState(mRasterizerState);
-	//d3dDeviceContext->RSSetViewports(1, viewport);
+	d3dDeviceContext->RSSetState(mRasterizerState);
+	d3dDeviceContext->RSSetViewports(1, viewport);
 
-	//// GBuffer normal and depth
-	//ID3D11ShaderResourceView* srv[] = { mLitBuffer->GetShaderResourceView() };
-	//d3dDeviceContext->PSSetShaderResources(0, 1, srv);
-	//d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
+	// GBuffer normal and depth
+	ID3D11ShaderResourceView* srv[] = { mLitBuffer->GetShaderResourceView() };
+	d3dDeviceContext->PSSetShaderResources(0, 1, srv);
+	d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
 
-	//d3dDeviceContext->PSSetShader(mFullQuadSprite->GetShader(), 0, 0);
-	//d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
-	//d3dDeviceContext->OMSetRenderTargets(1, &backBuffer, backDepth);
+	d3dDeviceContext->PSSetShader(mFullQuadSprite->GetShader(), 0, 0);
+	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
+	d3dDeviceContext->OMSetRenderTargets(1, &backBuffer, backDepth);
 
-	//d3dDeviceContext->Draw(3, 0);
+	d3dDeviceContext->Draw(3, 0);
 }
+
 

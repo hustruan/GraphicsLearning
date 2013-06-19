@@ -413,8 +413,9 @@
     <ClCompile Include="DXUT\Optional\DXUTsettingsdlg.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmesh.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
-    <None Include="Media\Shaders\DeferredLighting.hlsl" />
+    <None Include="Media\Shaders\DeferredLightingPass.hlsl" />
     <None Include="Media\Shaders\DeferredRendering.hlsl" />
+    <None Include="Media\Shaders\DeferredShadingPass.hlsl" />
     <None Include="Media\Shaders\EdgeDetect.hlsl" />
     <None Include="Media\Shaders\ForwardRendering.hlsl" />
     <None Include="Media\Shaders\FullQuadSprite.hlsl" />

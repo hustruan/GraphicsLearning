@@ -24,6 +24,7 @@ CDXUTDialog                 g_HUD;                  // manages the 3D
 CD3DSettingsDlg             g_D3DSettingsDlg;       // Device settings dialog
 CDXUTComboBox*              g_SceneSelectCombo;
 CDXUTComboBox*              g_ShadingSelectCombo;
+CDXUTCheckBox*              g_LightPrePassCheck;
 CDXUTTextHelper*            g_TextHelper;
 CFirstPersonCamera          g_Camera;               // A FPS camera
 
@@ -53,6 +54,7 @@ enum ShadingSelection
 #define IDC_CHANGEDEVICE        4
 #define IDC_SCENE_SELECTION     5
 #define IDC_SHADING_SELECTION   6
+#define IDC_DEFERRED_LIGHTING   7
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext );
 
@@ -81,6 +83,12 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 		g_D3DSettingsDlg.SetActive( !g_D3DSettingsDlg.IsActive() ); break;
 	case IDC_SCENE_SELECTION:
 		DestroyScene(); break;
+	case IDC_DEFERRED_LIGHTING:
+		{
+			if(g_SSAO) 
+				g_SSAO->SetLightPrePass(g_LightPrePassCheck->GetChecked());
+		}
+		break;
 	}
 }
 
@@ -459,6 +467,9 @@ void InitUI()
 	g_HUD.AddComboBox(IDC_SHADING_SELECTION, 0, iY +=36, width, 23, 0, false, &g_ShadingSelectCombo);
 	g_ShadingSelectCombo->AddItem(L"Forward", ULongToPtr(Shading_Forward));
 	g_ShadingSelectCombo->AddItem(L"Deferred Shading", ULongToPtr(Shading_DeferredShading));
+
+	g_HUD.AddCheckBox(IDC_DEFERRED_LIGHTING, L"Light Pre-Pass", 0, iY += 36, width, 23, 0, false, false, &g_LightPrePassCheck);
+	g_LightPrePassCheck->SetChecked(false);
 
 	g_HUD.SetSize(width, iY);
 }

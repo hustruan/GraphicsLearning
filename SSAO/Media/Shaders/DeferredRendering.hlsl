@@ -7,8 +7,8 @@
 cbuffer Light
 {
 	float3 LightColor;
-	float3 LightPosVS;        // View space light position
-	float3 LightDirectionVS; 
+	float3 LightPosition;        // View space light position
+	float3 LightDirection; 
 	float3 SpotFalloff;
 	float2 LightFalloff;   // begin and end
 };
@@ -51,97 +51,91 @@ void DeferredRenderingVS(
 
 }
 
-float4 DeferredRenderingPointPS(in float3 oTex : TEXCOORD0, in float3 oViewRay : TEXCOORD1) : SV_Target0
+float4 DeferredRenderingPS(
+#if defined(DirectionalLight)       
+							in float2 iTex : TEXCOORD0,
+#elif defined(PointLight) || defined(SpotLight)   
+							in float3 iTex : TEXCOORD0,
+#endif
+							in float3 iViewRay : TEXCOORD1)  : SV_Target0
 {
+#if defined(DirectionalLight)
+	float2 tex = iTex;
+#elif defined(PointLight) || defined(SpotLight)
+	float2 tex = ConvertUV( iTex.xy / iTex.z );
+#endif
+
 	float3 final = 0;
 
-	float2 tex = ConvertUV( oTex.xy / oTex.z );
-	
 	// Convert non-linear depth to view space linear depth
 	float linearDepth = LinearizeDepth( DepthBuffer.Sample(PointSampler, tex).x, CameraNearFar.x, CameraNearFar.y );
 
 	// View space lit position
-	float3 positionVS = PositionVSFromDepth(oViewRay, linearDepth);
+	float3 positionVS = PositionVSFromDepth(iViewRay, linearDepth);
+
+	float3 L = 0;
+	float attenuation = 1.0f;
+
+#if defined(PointLight) || defined(SpotLight)
+	
+	L = LightPosition - positionVS;
+
+	float dist = length(L);
+	attenuation = CalculateAttenuation(dist, LightFalloff.x, LightFalloff.y);
+
+	// Normailize
+	L /= dist;
+
+#elif defined(DirectionalLight)
+	L = -LightDirection;
+#endif
+
+#if defined(SpotLight)
+	float cosAngle = dot( -L, LightDirection ); 
+	attenuation *= CalculateSpotCutoff(cosAngle, SpotFalloff.x, SpotFalloff.y, SpotFalloff.z);
+#endif
 
 	// Fetch GBuffer
 	float4 tap0 = GBuffer0.Sample(PointSampler, tex);
-	float4 tap1 = GBuffer1.Sample(PointSampler, tex);
 
 	// Decode view space normal
 	float3 N = normalize(DecodeNormal( tap0.rgb )); 
 	float shininess = tap0.a * 256.0f;
 
-	// Get Diffuse Albedo and Specular
-	float3 diffuseAlbedo = tap1.rgb;
-	float3 specularAlbedo = tap1.aaa;
-
-	// light direction
-	float3 L = LightPosVS - positionVS;
-	float dist = length(L);
-	L = normalize(L);
-
-	float nDotl = dot(L , N);
+	float nDotl = dot(N, L);
 
 	if(nDotl > 0)
 	{
 		float3 V = normalize(-positionVS);
 		float3 H = normalize(L + V);
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess);
-		final *= LightColor * nDotl * CalculateAttenuation(dist, LightFalloff.x, LightFalloff.y);
+
+		float4 tap1 = GBuffer1.Sample(PointSampler, tex);
+
+		// Get Diffuse Albedo and Specular
+		float3 diffuseAlbedo = tap1.rgb;
+		float3 specularAlbedo = tap1.aaa;
+
+		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
+		final *= LightColor * nDotl * attenuation;
 	}
+
+	//Additively blend is not free, discard pixel not contributing any light	  
+	if(dot(final.rgb, 1.0) == 0) discard;
 
 	return float4(final, 1.0f);
 }
 
-float4 DeferredRenderingDirectionPS(in float2 oTex : TEXCOORD0, in float3 oViewRay : TEXCOORD1) : SV_Target0
-{
-	float3 final = 0;
-
-	// Convert non-linear depth to view space linear depth
-	float linearDepth = LinearizeDepth( DepthBuffer.Sample(PointSampler, oTex).x, CameraNearFar.x, CameraNearFar.y );
-
-	// View space lit position
-	float3 positionVS = PositionVSFromDepth(oViewRay, linearDepth);
-
-	// Fetch GBuffer
-	float4 tap0 = GBuffer0.Sample(PointSampler, oTex);
-	float4 tap1 = GBuffer1.Sample(PointSampler, oTex);
-
-	// Decode view space normal
-	float3 N = normalize(DecodeNormal( tap0.rgb )); 
-	float shininess = tap0.a * 256.0f;
-
-	// Get Diffuse Albedo and Specular
-	float3 diffuseAlbedo = tap1.rgb;
-	float3 specularAlbedo = tap1.aaa;
-
-	// light direction
-	float3 L = -LightDirectionVS;
-
-	float nDotl = dot(L, N);
-
-	if(nDotl > 0)
-	{
-		float3 V = normalize(-positionVS);
-		float3 H = normalize(L + V);
-	
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecular(N, H, shininess);
-		final *= LightColor * nDotl;
-	}
-
-	return float4(final, 1.0f);
-}
 
 //----------------------------------------------------
-void DebugPointLightVS(in float3 iPos : POSITION, out float4 oPos : SV_Position) 
-{
-	oPos = mul(float4(iPos, 1.0f), WorldViewProj);
-}
+//void DebugPointLightVS(in float3 iPos : POSITION, out float4 oPos : SV_Position) 
+//{
+//	oPos = mul(float4(iPos, 1.0f), WorldViewProj);
+//}
 
-float4 DebugPointLightPS() : SV_Target0
-{
-	return float4(LightColor, 1.0f);
-}
+//float4 DebugPointLightPS() : SV_Target0
+//{
+//	return float4(LightColor, 1.0f);
+//}
 
 #endif
 

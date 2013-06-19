@@ -103,10 +103,13 @@
     <None Include="Media\Shaders\ForwardRendering.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\DeferredLighting.hlsl">
+    <None Include="Media\Shaders\EdgeDetect.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\EdgeDetect.hlsl">
+    <None Include="Media\Shaders\DeferredLightingPass.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DeferredShadingPass.hlsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
