@@ -78,30 +78,27 @@ float CalculateSpecular(in float3 N, in float3 H, in float specPower)
 }
 
 /**
+ * @brief Calculate light attenuation.
  */
 float CalculateAttenuation(in float dist, in float attenBegin, in float attenEnd)
 {
 	return saturate( (attenEnd-dist)/(attenEnd-attenBegin) );
 }
 
+/**
+ * @brief Calculate spot light cutoff.
+ */
 float CalculateSpotCutoff(in float cosAngle, in float innerCos, in float outerCos, in float power)
 {
 	return pow( saturate((cosAngle-outerCos)/(innerCos-outerCos)), power );
 }
 
-//void CalculateBlinPhongBRDF(float3 normal, float3 lightDir, float3 viewDir, float3 lightIntensity, float specularPower, 
-//                    inout float3 litDiffuse, inout float3 litSpecular)
-//{
-//	float NdotL = dot(normal, lightDir);
-
-//	if(NdotL > 0.0f)
-//	{
-//		float3 h = reflect(lightDir, viewDir);
-//		float RdotV = max(0.0f, dot(r, viewDir));
-
-//		litDiffuse += lightIntensity * NdotL;
-//		litSpecular += lightIntensity * pow(RdotV, specularPower);;
-//	}
-//}
+/**
+ * @brief Calculate luminance of color
+ */
+ float Luminance(in float3 color)
+ {
+	return dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f)
+ }
 
 #endif

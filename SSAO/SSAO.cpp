@@ -52,6 +52,8 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 	mFullScreenTriangleVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\FullScreenTriangle.hlsl", "FullScreenTriangleVS", nullptr);
 	mSSAOCrytekPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\SSAO.hlsl", "SSAOPS", nullptr);
 
+	mEdgeAAPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\EdgeDetect.hlsl", "DL_GetEdgeWeight", nullptr);
+
 	{
 		mForwardDirectionalVS = std::make_shared<VertexShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardVS", nullptr);
 		mForwardDirectionalPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardPS", nullptr);
@@ -424,26 +426,8 @@ void SSAO::Render( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView
 	// Deferred shading
 	ComputeShading(d3dDeviceContext, lights, viewerCamera, viewport);
 
-	// Render full sreen quad
-	d3dDeviceContext->IASetInputLayout(0);
-	d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
-
-	d3dDeviceContext->VSSetShader(mFullScreenTriangleVS->GetShader(), 0, 0);
-
-	d3dDeviceContext->RSSetState(mRasterizerState);
-	d3dDeviceContext->RSSetViewports(1, viewport);
-
-	// GBuffer normal and depth
-	ID3D11ShaderResourceView* srv[] = { mLitBuffer->GetShaderResourceView() };
-	d3dDeviceContext->PSSetShaderResources(0, 1, srv);
-	d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
-
-	d3dDeviceContext->PSSetShader(mFullQuadSprite->GetShader(), 0, 0);
-	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
-	d3dDeviceContext->OMSetRenderTargets(1, &backBuffer, backDepth);
-
-	d3dDeviceContext->Draw(3, 0);
+	// Post-Process
+	PostProcess(d3dDeviceContext, backBuffer, viewport);
 }
 
 void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, const Scene& scene, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
@@ -796,5 +780,62 @@ void SSAO::DrawLightVolumeDebug( ID3D11DeviceContext* d3dDeviceContext, const Li
 
 		idx++;
 	}	
+}
+
+void SSAO::EdgeAA( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport )
+{
+	// Render full sreen quad
+	d3dDeviceContext->IASetInputLayout(0);
+	d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
+
+	d3dDeviceContext->VSSetShader(mFullScreenTriangleVS->GetShader(), 0, 0);
+
+	d3dDeviceContext->RSSetState(mRasterizerState);
+	d3dDeviceContext->RSSetViewports(1, viewport);
+
+	// GBuffer normal and depth
+	ID3D11ShaderResourceView* srv[] = { 
+		mGBufferSRV.front(), // Normal
+		mGBufferSRV.back(),  // Depth
+		mLitBuffer->GetShaderResourceView() 
+	};
+
+	d3dDeviceContext->PSSetShaderResources(0, 3, srv);
+	d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
+	d3dDeviceContext->PSSetSamplers(1, 1, &mDiffuseSampler);
+
+	d3dDeviceContext->PSSetShader(mEdgeAAPS->GetShader(), 0, 0);
+	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
+	d3dDeviceContext->OMSetDepthStencilState(mDepthDisableState, 0);
+	d3dDeviceContext->OMSetRenderTargets(1, &backBuffer, NULL);
+
+	d3dDeviceContext->Draw(3, 0);
+}
+
+void SSAO::PostProcess( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport )
+{
+	EdgeAA(d3dDeviceContext, backBuffer, viewport);
+
+	//// Render full sreen quad
+	//d3dDeviceContext->IASetInputLayout(0);
+	//d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	//d3dDeviceContext->IASetVertexBuffers(0, 0, 0, 0, 0);
+
+	//d3dDeviceContext->VSSetShader(mFullScreenTriangleVS->GetShader(), 0, 0);
+
+	//d3dDeviceContext->RSSetState(mRasterizerState);
+	//d3dDeviceContext->RSSetViewports(1, viewport);
+
+	//// GBuffer normal and depth
+	//ID3D11ShaderResourceView* srv[] = { mLitBuffer->GetShaderResourceView() };
+	//d3dDeviceContext->PSSetShaderResources(0, 1, srv);
+	//d3dDeviceContext->PSSetSamplers(0, 1, &mGBufferSampler);
+
+	//d3dDeviceContext->PSSetShader(mFullQuadSprite->GetShader(), 0, 0);
+	//d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
+	//d3dDeviceContext->OMSetRenderTargets(1, &backBuffer, backDepth);
+
+	//d3dDeviceContext->Draw(3, 0);
 }
 

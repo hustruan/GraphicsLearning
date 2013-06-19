@@ -63,6 +63,10 @@ private:
 
 	void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
+	void PostProcess(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
+
+	void EdgeAA(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
+
 private:
 	
 	bool mLighting;
@@ -109,6 +113,8 @@ private:
 
 	shared_ptr<VertexShader> mDebugVS;;
 	shared_ptr<PixelShader> mDebugPS;
+
+	shared_ptr<PixelShader> mEdgeAAPS;
 
 	// SSAO Shaders
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
