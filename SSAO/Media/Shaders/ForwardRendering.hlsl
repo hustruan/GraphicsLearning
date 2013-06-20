@@ -1,5 +1,10 @@
-#include "PerFrameConstants.hlsl"
 #include "Utility.hlsl"
+
+cbuffer PerOjectConstant
+{
+	float4x4 WorldView;
+	float4x4 WorldViewProj;
+};
 
 cbuffer Light
 {
@@ -7,7 +12,7 @@ cbuffer Light
 	float3 LightPosition;        // View space light position
 	float3 LightDirection; 
 	float3 SpotFalloff;
-	float2 LightFalloff;   // begin and end
+	float2 LightAttenuation;   // begin and end
 };
 
 Texture2D DiffuseTexture : register(t0);

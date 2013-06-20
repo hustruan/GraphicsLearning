@@ -34,6 +34,10 @@ float LinearizeDepth(in float nonLinearDepth, in float nearPlane, in float farPl
 	return nearPlane * farPlane / (farPlane - (farPlane - nearPlane) * nonLinearDepth);
 }
 
+//float LinearizeDepth(in float zw, in float projM43, in float projM33)
+//{	
+//	 return projM43 / (zw - projM33);
+//}
 
 /**
  * @param lPosView    view space position of light volume mesh vertices

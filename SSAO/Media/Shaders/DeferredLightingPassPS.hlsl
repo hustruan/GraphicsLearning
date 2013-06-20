@@ -1,16 +1,22 @@
 #ifndef DeferredLighting_HLSL
 #define DeferredLighting_HLSL
 
-#include "PerFrameConstants.hlsl"
 #include "Utility.hlsl"
 
-cbuffer Light
+cbuffer PerFrameConstant : register(b0)
+{
+	float4x4 Projection;
+	float4x4 InvProjection;
+	float4   CameraNearFar;
+};
+
+cbuffer Light : register(b1)
 {
 	float3 LightColor;
 	float3 LightPosition;        // View space light position
 	float3 LightDirection; 
 	float3 SpotFalloff;
-	float2 LightFalloff;   // begin and end
+	float2 LightAttenuation;   // begin and end
 };
 
 SamplerState PointSampler : register(s0);
@@ -62,7 +68,7 @@ float4 DeferredLightingPS(
 	L = LightPosition - positionVS;
 
 	float dist = length(L);
-	attenuation = CalculateAttenuation(dist, LightFalloff.x, LightFalloff.y);
+	attenuation = CalculateAttenuation(dist, LightAttenuation.x, LightAttenuation.y);
 
 	// Normailize
 	L /= dist;

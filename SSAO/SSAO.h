@@ -61,7 +61,7 @@ private:
 
 	void DrawDirectionalLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
-	//void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
+	void DrawLightVolumeDebug(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
 	void PostProcess(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth, const D3D11_VIEWPORT* viewport);
 
@@ -77,15 +77,12 @@ private:
 	ID3D11InputLayout* mLightProxyVertexLayout;
 
 	ID3D11Buffer* mPerFrameConstants;
+	ID3D11Buffer* mPerObjectConstants;
 	ID3D11Buffer* mAOParamsConstants;
 	ID3D11Buffer* mLightConstants;
 
 	shared_ptr<Texture2D> mDepthBuffer;
 	ID3D11DepthStencilView* mDepthBufferReadOnlyDSV;
-
-	// GBuffer Shaders
-	shared_ptr<VertexShader> mGeometryVS;
-	shared_ptr<PixelShader> mGeometryPS;
 
 	std::vector<shared_ptr<Texture2D>> mGBuffer;
 	std::vector<ID3D11RenderTargetView*> mGBufferRTV;
@@ -96,15 +93,13 @@ private:
 	shared_ptr<Texture2D> mLitBuffer;
 	shared_ptr<Texture2D> mAOBuffer;
 
+	// GBuffer Shaders
+	shared_ptr<VertexShader> mGeometryVS;
+	shared_ptr<PixelShader> mGeometryPS;
+
+	// forward shader
 	shared_ptr<VertexShader> mForwardDirectionalVS;
 	shared_ptr<PixelShader> mForwardDirectionalPS;
-
-	shared_ptr<VertexShader> mDeferredDirectionalVS;
-	shared_ptr<PixelShader> mDeferredDirectionalPS;
-
-	shared_ptr<VertexShader> mDeferredPointOrSpotVS;
-	shared_ptr<PixelShader> mDeferredPointPS;
-	shared_ptr<PixelShader> mDeferredSpotPS;
 
 	// classic deferred shading, for each light type
 	shared_ptr<VertexShader> mDeferredShadingVS[3];

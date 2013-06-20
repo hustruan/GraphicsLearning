@@ -84,8 +84,8 @@ void LightAnimation::RandonPointLight( int numLight )
 		light.LightType = LT_PointLight;
 
 		light.LightColor = IntensityDist(rng) * HueToRGB(HueDist(rng));
-		light.LightFalloff.y = AttenuationDist(rng);
-		light.LightFalloff.x = AttenuationStartFactor * light.LightFalloff.y;
+		light.LightAttenuation.y = AttenuationDist(rng);
+		light.LightAttenuation.x = AttenuationStartFactor * light.LightAttenuation.y;
 		
 		light.Radius = std::sqrt(RadiusNormDist(rng)) * MaxRadius;
 		light.Angle = AngleDist(rng) * D3DX_PI / 180.0f;
@@ -108,8 +108,8 @@ void LightAnimation::RandonSpotLight( int numLight )
 		light.LightType = LT_PointLight;
 
 		light.LightColor = IntensityDist(rng) * HueToRGB(HueDist(rng));
-		light.LightFalloff.y = AttenuationDist(rng);
-		light.LightFalloff.x = AttenuationStartFactor * light.LightFalloff.y;
+		light.LightAttenuation.y = AttenuationDist(rng);
+		light.LightAttenuation.x = AttenuationStartFactor * light.LightAttenuation.y;
 		light.SpotFalloff.x =  SpotInnerAngleDist(rng) * D3DX_PI / 180.0f;
 		light.SpotFalloff.y =  light.SpotFalloff.x  + SpotOuterAngleDist(rng) * D3DX_PI / 180.0f;
 		light.SpotFalloff = D3DXVECTOR3(cosf(light.SpotFalloff.x), cosf(light.SpotFalloff.y), SpotDropoffDist(rng));
@@ -156,8 +156,8 @@ void LightAnimation::RecordLight( const CFirstPersonCamera& camera, UINT uMsg, W
 				light.LightType = LT_PointLight;
 
 				light.LightColor = IntensityDist(rng) * HueToRGB(HueDist(rng));
-				light.LightFalloff.y = AttenuationDist(rng);
-				light.LightFalloff.x = AttenuationStartFactor * light.LightFalloff.y;
+				light.LightAttenuation.y = AttenuationDist(rng);
+				light.LightAttenuation.x = AttenuationStartFactor * light.LightAttenuation.y;
 
 				const D3DXVECTOR3& cameraPos = *camera.GetEyePt();
 				light.Height = cameraPos.y;
@@ -184,8 +184,8 @@ void LightAnimation::RecordLight( const CFirstPersonCamera& camera, UINT uMsg, W
 				light.LightColor = IntensityDist(rng) * HueToRGB(HueDist(rng));
 				light.LightPosition = *camera.GetEyePt();
 				light.LightDirection = cameraDir;
-				light.LightFalloff.y = AttenuationDist(rng);
-				light.LightFalloff.x = AttenuationStartFactor * light.LightFalloff.y;
+				light.LightAttenuation.y = AttenuationDist(rng);
+				light.LightAttenuation.x = AttenuationStartFactor * light.LightAttenuation.y;
 				light.SpotFalloff.x =  SpotInnerAngleDist(rng) * D3DX_PI / 180.0f;
 				light.SpotFalloff.y =  light.SpotFalloff.x  + SpotOuterAngleDist(rng) * D3DX_PI / 180.0f;
 				light.SpotFalloff = D3DXVECTOR3(cosf(light.SpotFalloff.x), cosf(light.SpotFalloff.y), SpotDropoffDist(rng));
@@ -222,12 +222,12 @@ void LightAnimation::SaveLights( )
 		case LT_PointLight:
 			stream << LT_PointLight << " " <<  OutputVector3(light.LightColor) 
 				   <<  "(" << light.Radius << " " << light.Angle << " " << light.Height << " " << light.AnimationSpeed << ") "
-				   << OutputVector2(light.LightFalloff) << std::endl;
+				   << OutputVector2(light.LightAttenuation) << std::endl;
 			break;
 		case LT_SpotLight:
 			stream << LT_SpotLight << " " <<  OutputVector3(light.LightColor) << OutputVector3(light.LightPosition) 
 				   << OutputVector3(light.LightDirection) << OutputVector3(light.SpotFalloff) 
-				   << OutputVector2(light.LightFalloff) << std::endl;
+				   << OutputVector2(light.LightAttenuation) << std::endl;
 			break;
 		}
 	}
@@ -267,11 +267,11 @@ void LightAnimation::LoadLights( const std::string& filename )
 		case LT_PointLight:
 			stream >> ReadVector3(light.LightColor) 
 				   >> dummy >> light.Radius >> light.Angle >> light.Height >> light.AnimationSpeed >> dummy
-				   >> ReadVector2(light.LightFalloff);
+				   >> ReadVector2(light.LightAttenuation);
 			break;
 		case LT_SpotLight:
 			stream >> ReadVector3(light.LightColor) >> ReadVector3(light.LightPosition) >> ReadVector3(light.LightDirection)
-				   >> ReadVector3(light.SpotFalloff) >> ReadVector2(light.LightFalloff);
+				   >> ReadVector3(light.SpotFalloff) >> ReadVector2(light.LightAttenuation);
 			break;
 		}
 		mLights.push_back(light);

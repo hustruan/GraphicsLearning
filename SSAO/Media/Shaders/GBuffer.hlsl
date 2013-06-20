@@ -1,34 +1,20 @@
 #ifndef GBuffer_HLSL
 #define GBuffer_HLSL
 
-#include "PerFrameConstants.hlsl"
-#include "Utility.hlsl"
-
-struct GBuffer
+cbuffer PerOjectConstant : register(b0)
 {
-	float4 Normal : SV_Target0;     // Normal + shininess
-    float4 Albedo : SV_Target1;     // Diffuse + Specular
+	float4x4 WorldView;
+	float4x4 WorldViewProj;
 };
+
+static const float Shininess = 80.0f;
+static const float Specular = 0.5f;
 
 Texture2D BestFitTexture : register(t0); 
-SamplerState NormalSampler : register(s0);
-
 Texture2D DiffuseTexture : register(t1);
+
+SamplerState NormalSampler : register(s0);
 SamplerState DiffuseSampler : register(s1);
-
-struct GeometryVSIn
-{
-    float3 iPos       : POSITION;
-    float3 iNormal    : NORMAL;
-    float2 iTex       : TEXCOORD0;
-};
-
-struct GeometryVSOut
-{
-    float4 oPos       : SV_Position;
-    float3 oNormal    : TEXCOORD0;
-    float2 oTex       : TEXCOORD1;
-};
 
 void CompressUnsignedNormalToNormalsBuffer(inout float3 vNormal)
 {
@@ -52,29 +38,38 @@ void CompressUnsignedNormalToNormalsBuffer(inout float3 vNormal)
   vNormal.rgb = vNormal.rgb * .5f + .5f;
 }
 
-GeometryVSOut GeometryVS(GeometryVSIn input)
+void VSMain(in float3 iPos       : POSITION,
+            in float3 iNormal    : NORMAL,
+            in float2 iTex       : TEXCOORD0,
+			out float4 oPosCS    : SV_Position,
+			out float3 oNormal   : NORMAL,
+			out float2 oTex      : TEXCOORD0)
 {
-    GeometryVSOut output;
-
-    output.oPos     = mul(float4(input.iPos, 1.0f), WorldViewProj);
-    output.oNormal  = mul(float4(input.iNormal, 0.0f), WorldView).xyz;
-    output.oTex     = input.iTex;
-    
-    return output;
+	oPosCS   = mul(float4(iPos, 1.0f), WorldViewProj);
+    oNormal  = mul(float4(iNormal, 0.0f), WorldView).xyz;
+    oTex     = iTex;
 }
 
-void GeometryPS(GeometryVSOut input, out GBuffer outputGBuffer)
+struct GBuffer
 {
-    float4 albedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
-    float3 normal = input.oNormal;
-     
-	const float Shininess = 80.0f;
-    const float Specular = 0.5f;
+	float4 Normal : SV_Target0;     // Normal + shininess
+    float4 Albedo : SV_Target1;     // Diffuse + Specular
+};
 
+
+GBuffer PSMain(in float3 iNormal : NORMAL, in float2 iTex : TEXCOORD0)
+{
+	GBuffer output;
+
+    float4 albedo = DiffuseTexture.Sample(DiffuseSampler, iTex);
+
+	float3 normal = iNormal;
 	CompressUnsignedNormalToNormalsBuffer(normal);
 
-    outputGBuffer.Normal = float4(normal, Shininess/256.0f);
-    outputGBuffer.Albedo = float4(albedo.rgb, Specular);
+    output.Normal = float4(normal, Shininess/256.0f);
+    output.Albedo = float4(albedo.rgb, Specular);
+
+	return output;
 }
 
 #endif // GBuffer_HLSL

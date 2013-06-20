@@ -24,7 +24,7 @@ public:
 		D3DXVECTOR3 LightPosition;
 		D3DXVECTOR3 LightDirection;
 		D3DXVECTOR3 SpotFalloff;
-		D3DXVECTOR2 LightFalloff;
+		D3DXVECTOR2 LightAttenuation;
 
 		// For animation
 		float Radius;
@@ -40,13 +40,13 @@ public:
 
 		//// Point
 		//Light(const D3DXVECTOR3& color, const D3DXVECTOR3& position, float attenuationBegin, float attenuationEnd)
-		//	: LightType(LT_PointLight), LightColor(color), LightPosition(position), LightFalloff(attenuationBegin, attenuationEnd) {}
+		//	: LightType(LT_PointLight), LightColor(color), LightPosition(position), LightAttenuation(attenuationBegin, attenuationEnd) {}
 	
 		//// Spot
 		//Light(const D3DXVECTOR3& color, const D3DXVECTOR3& position, const D3DXVECTOR3& direction, 
 		//	float innerAngle, float outAngle, float spotFalloff, float attenuationBegin, float attenuationEnd)
 		//	: LightType(LT_SpotLight), LightColor(color), LightPosition(position), LightDirection(direction),
-		//	  SpotFalloff(cosf(innerAngle), cosf(outAngle), spotFalloff), LightFalloff(attenuationBegin, attenuationEnd) {}
+		//	  SpotFalloff(cosf(innerAngle), cosf(outAngle), spotFalloff), LightAttenuation(attenuationBegin, attenuationEnd) {}
 	};
 
 public:

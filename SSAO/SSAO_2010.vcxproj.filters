@@ -91,9 +91,6 @@
     <None Include="Media\Shaders\PerFrameConstants.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\DeferredRendering.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Media\Shaders\Utility.hlsl">
       <Filter>Shaders</Filter>
     </None>
@@ -106,10 +103,25 @@
     <None Include="Media\Shaders\EdgeDetect.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\DeferredLightingPass.hlsl">
+    <None Include="Media\Shaders\GPUScreenQuad.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\DeferredShadingPass.hlsl">
+    <None Include="Media\Shaders\DebugVolumePS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DebugVolumeVS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DeferredShadingClassicPS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DeferredShadingClassicVS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DeferredLightingPassPS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\DeferredShadingPassPS.hlsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
