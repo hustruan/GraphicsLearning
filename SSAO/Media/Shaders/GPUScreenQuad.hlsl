@@ -1,10 +1,16 @@
 #ifndef GPUScreenQuad_HLSL
 #define GPUScreenQuad_HLSL
 
-#include "PerFrameConstants.hlsl"
 #include "Utility.hlsl"
 
-cbuffer Light
+cbuffer PerFrameConstant : register(b0)
+{
+	float4x4 Projection;
+	float4x4 InvProj;
+	float4   CameraNearFar;
+};
+
+cbuffer Light : register(b1)
 {
 	float3 LightColor;
 	float3 LightPosition;        // View space light position
@@ -17,7 +23,7 @@ void UpdateClipRegionRoot( float nc, /* Tangent plane x/y normal coordinate (vie
 	                       float lc, /* Light x/y coordinate (view space) */ 
 						   float lz, /* Light z coordinate (view space) */ 
 						   float lightRadius, float cameraScale, /* Project scale for coordinate (_11 or _22 for x/y respectively) */ 
-						   float clipMin, float clipMax )
+						   inout float clipMin, inout float clipMax )
 {
 	float nz = (lightRadius - nc * lc) / lz;
 	//float pz = (lc * lc + lz * lz - lightRadius * lightRadius) / (lz - (nz / nc) * lc);
@@ -36,7 +42,7 @@ void UpdateClipRegionRoot( float nc, /* Tangent plane x/y normal coordinate (vie
 void UpdateClipRegion( float lc, /* Light x/y coordinate (view space) */ 
 	                   float lz, /* Light z coordinate (view space) */
 					   float lightRadius, float cameraScale, /* Project scale for coordinate (_11 or _22 for x/y respectively) */ 
-					   float clipMin, float clipMax )
+					   inout float clipMin, inout float clipMax )
 {
 	float rSq = lightRadius * lightRadius;
 	float lcSqPluslzSq = lc * lc + lz * lz;
@@ -85,19 +91,21 @@ GPUQuadVSOut GPUQuadVS(in uint lightIndex : SV_VertexID)
 
 	float lightRadius = LightAttenuation.y;
 	
-	output.QuadCoord = CalculateLightBound(LightPosition, lightRadius, CameraNearFar.y, Proj._11, Proj._22);
+	output.QuadCoord = CalculateLightBound(LightPosition, lightRadius, CameraNearFar.y, Projection._11, Projection._22);
 	
 	float quadDepth = max(CameraNearFar.x, LightPosition.z - lightRadius);
-	float4 quadClip = mul(float4(0.0f, 0.0f, quadDepth, 1.0f), Proj);
+	float4 quadClip = mul(float4(0.0f, 0.0f, quadDepth, 1.0f), Projection);
 
     output.QuadZ = quadClip.z / quadClip.w;
+
+	return output;
 }
 
 struct GPUQuadGSOut
 {
-    float4 oPosCS   : SV_Position;
 	float2 oTex     : TEXCOORD0;
 	float3 oViewRay : TEXCOORD1;
+	float4 oPosCS   : SV_Position;
 };
 
 

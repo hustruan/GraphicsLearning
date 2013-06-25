@@ -94,8 +94,8 @@ private:
 	shared_ptr<Texture2D> mAOBuffer;
 
 	// GBuffer Shaders
-	shared_ptr<VertexShader> mGeometryVS;
-	shared_ptr<PixelShader> mGeometryPS;
+	shared_ptr<VertexShader> mGBufferVS;
+	shared_ptr<PixelShader> mGBufferPS;
 
 	// forward shader
 	shared_ptr<VertexShader> mForwardDirectionalVS;
@@ -110,6 +110,9 @@ private:
 
 	// deferred lighting, shading pass
 	shared_ptr<PixelShader> mDeferredLightingShadingPS;
+
+	shared_ptr<VertexShader> mScreenQuadVS;
+	shared_ptr<GeometryShader> mScreenQuadGS;
 
 	shared_ptr<VertexShader> mDebugVS;;
 	shared_ptr<PixelShader> mDebugPS;

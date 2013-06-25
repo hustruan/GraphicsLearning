@@ -10,13 +10,7 @@ cbuffer PerFrameConstant : register(b0)
 	float4   CameraNearFar;
 };
 
-cbuffer PerOjectConstant : register(b1)
-{
-	float4x4 WorldView;
-	float4x4 WorldViewProj;
-};
-
-cbuffer Light : register(b2)
+cbuffer Light : register(b1)
 {
 	float3 LightColor;
 	float3 LightPosition;        // View space light position
@@ -84,25 +78,33 @@ float4 DeferredRenderingPS(
 
 	float nDotl = dot(N, L);
 
+	float4 tap1 = GBuffer1.Sample(PointSampler, tex);
+
+		// Get Diffuse Albedo and Specular
+	float3 diffuseAlbedo = tap1.rgb;
+	float3 specularAlbedo = tap1.aaa;
+
 	if(nDotl > 0)
 	{
 		float3 V = normalize(-positionVS);
 		float3 H = normalize(L + V);
 
-		float4 tap1 = GBuffer1.Sample(PointSampler, tex);
+		//float4 tap1 = GBuffer1.Sample(PointSampler, tex);
 
-		// Get Diffuse Albedo and Specular
-		float3 diffuseAlbedo = tap1.rgb;
-		float3 specularAlbedo = tap1.aaa;
+		//// Get Diffuse Albedo and Specular
+		//float3 diffuseAlbedo = tap1.rgb;
+		//float3 specularAlbedo = tap1.aaa;
 
 		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
 		final *= LightColor * nDotl * attenuation;
 	}
 
-	//Additively blend is not free, discard pixel not contributing any light	  
-	if(dot(final.rgb, 1.0) == 0) discard;
+	return float4(diffuseAlbedo, 1.0f);
 
-	return float4(final, 1.0f);
+	//Additively blend is not free, discard pixel not contributing any light	  
+	//if(dot(final.rgb, 1.0) == 0) discard;
+
+	//return float4(final, 1.0f);
 }
 
 #endif

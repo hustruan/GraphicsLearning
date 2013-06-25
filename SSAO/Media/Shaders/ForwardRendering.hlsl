@@ -1,12 +1,14 @@
 #include "Utility.hlsl"
 
-cbuffer PerOjectConstant
+// VS Constant
+cbuffer PerOjectConstant : register(b0)
 {
 	float4x4 WorldView;
 	float4x4 WorldViewProj;
 };
 
-cbuffer Light
+// PS Constant
+cbuffer Light : register(b0)
 {
 	float3 LightColor;
 	float3 LightPosition;        // View space light position

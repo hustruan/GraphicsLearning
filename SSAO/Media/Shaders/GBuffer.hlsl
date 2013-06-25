@@ -38,32 +38,44 @@ void CompressUnsignedNormalToNormalsBuffer(inout float3 vNormal)
   vNormal.rgb = vNormal.rgb * .5f + .5f;
 }
 
-void VSMain(in float3 iPos       : POSITION,
-            in float3 iNormal    : NORMAL,
-            in float2 iTex       : TEXCOORD0,
-			out float4 oPosCS    : SV_Position,
-			out float3 oNormal   : NORMAL,
-			out float2 oTex      : TEXCOORD0)
+struct VSInput
 {
-	oPosCS   = mul(float4(iPos, 1.0f), WorldViewProj);
-    oNormal  = mul(float4(iNormal, 0.0f), WorldView).xyz;
-    oTex     = iTex;
-}
-
-struct GBuffer
-{
-	float4 Normal : SV_Target0;     // Normal + shininess
-    float4 Albedo : SV_Target1;     // Diffuse + Specular
+	float3 iPos       : POSITION;
+	float3 iNormal    : NORMAL;
+	float2 iTex       : TEXCOORD0;
 };
 
-
-GBuffer PSMain(in float3 iNormal : NORMAL, in float2 iTex : TEXCOORD0)
+struct VSOutput
 {
-	GBuffer output;
+	float4 oPosCS    : SV_Position;
+	float3 oNormal   : NORMAL;
+	float2 oTex      : TEXCOORD0;
+};
 
-    float4 albedo = DiffuseTexture.Sample(DiffuseSampler, iTex);
+VSOutput GBufferVS(VSInput input)
+{
+	VSOutput output;
 
-	float3 normal = iNormal;
+	output.oPosCS   = mul(float4(input.iPos, 1.0f), WorldViewProj);
+    output.oNormal  = mul(input.iNormal, (float3x3)WorldView);
+    output.oTex     = input.iTex;
+
+	return output;
+}
+
+struct PSOutput
+{
+	float4 Normal    : SV_Target0;     // Normal + shininess
+	float4 Albedo    : SV_Target1;     // Diffuse + Specular
+};
+
+PSOutput GBufferPS(VSOutput input)
+{
+	PSOutput output;
+
+    float4 albedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
+    float3 normal = input.oNormal;
+
 	CompressUnsignedNormalToNormalsBuffer(normal);
 
     output.Normal = float4(normal, Shininess/256.0f);

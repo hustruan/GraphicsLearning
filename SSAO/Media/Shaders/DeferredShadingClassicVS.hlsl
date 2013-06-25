@@ -1,7 +1,7 @@
 #ifndef DeferredRendering_HLSL
 #define DeferredRendering_HLSL
 
-#include "Utility.hlsl"
+#if defined(DirectionalLight)
 
 cbuffer PerFrameConstant : register(b0)
 {
@@ -10,17 +10,22 @@ cbuffer PerFrameConstant : register(b0)
 	float4   CameraNearFar;
 };
 
-cbuffer PerOjectConstant : register(b1)
+#elif defined(PointLight) || defined(SpotLight)   
+
+cbuffer PerOjectConstant : register(b0)
 {
 	float4x4 WorldView;
 	float4x4 WorldViewProj;
 };
 
+#endif
+
+
 void DeferredRenderingVS(                   
 #if defined(DirectionalLight)
 						 in  uint vertexID   : SV_VertexID,
 						 out float2 oTex     : TEXCOORD0,
-#else
+#elif defined(PointLight) || defined(SpotLight)   
 						 in  float3 iPos     : POSITION,
 						 out float3 oTex     : TEXCOORD0, // divide by w is wrong, w may negative, So pass the clip space coord to pixel shader
 #endif
@@ -38,7 +43,7 @@ void DeferredRenderingVS(
 	float4 posVS = mul(oPos, InvProj);
 	oViewRay = float3(posVS.xy / posVS.z, 1.0f);       // Proj to Z=1 plane
 
-#else
+#elif defined(PointLight) || defined(SpotLight)   
 	
 	oPos = mul(float4(iPos, 1.0f), WorldViewProj);
 	oTex = float3(oPos.xy, oPos.w);

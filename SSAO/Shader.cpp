@@ -2,72 +2,11 @@
 #include "Shader.h"
 #include <exception>
 
-namespace ShaderFactory
+
+HRESULT ShaderFactory::CompileShaderFromFile( LPCTSTR szFileName, LPCSTR szEntryPoint, CONST D3D10_SHADER_MACRO *defines, LPCSTR szShaderModel, ID3DBlob** ppBlobOut )
 {
-	 template <typename T> LPCSTR GetShaderProfileString();
-	 template <typename T> T* CreateShader(ID3D11Device* d3dDevice, const void* shaderBytecode, size_t bytecodeLength);
+	HRESULT hr = S_OK;
 
-	 // Vertex Shader
-	 template<>
-	 inline LPCSTR GetShaderProfileString<ID3D11VertexShader>() { return "vs_4_0"; }
-
-	 template<>
-	 inline ID3D11VertexShader* CreateShader<ID3D11VertexShader>(ID3D11Device* d3dDevice, const void* shaderBytecode, size_t bytecodeLength)
-	 {
-		 ID3D11VertexShader *shader = 0;
-		 HRESULT hr = d3dDevice->CreateVertexShader(shaderBytecode, bytecodeLength, 0, &shader);
-		 if (FAILED(hr)) {
-			 assert(false);
-		 }
-		 return shader;
-	 }
-
-	 // Pixel Shader
-	 template<>
-	 inline LPCSTR GetShaderProfileString<ID3D11PixelShader>() { return "ps_4_0"; }
-
-	 template<>
-	 inline ID3D11PixelShader* CreateShader<ID3D11PixelShader>(ID3D11Device* d3dDevice, const void* shaderBytecode, size_t bytecodeLength)
-	 {
-		 ID3D11PixelShader *shader = 0;
-		 HRESULT hr = d3dDevice->CreatePixelShader(shaderBytecode, bytecodeLength, 0, &shader);
-		 if (FAILED(hr)) {
-			 assert(false);
-		 }
-		 return shader;
-	 }
-}
-
-ID3D11InputLayout* CreateVertexLayout( ID3D11Device* d3dDevice, const D3D11_INPUT_ELEMENT_DESC* layout, int size, LPCTSTR srcFile, LPCSTR szEntryPoint, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
-{
-	HRESULT hr; 
-
-	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
-
-	ID3D11InputLayout* pVertexLayout = 0;
-
-	ID3D10Blob* pBytecode = 0;
-	ID3DBlob* pErrorBlob;
-	hr = D3DX11CompileFromFile( srcFile, defines, NULL, szEntryPoint, "vs_4_0", 
-		dwShaderFlags, 0, NULL, &pBytecode, &pErrorBlob, NULL );
-
-	assert(SUCCEEDED(hr));
-
-	hr = d3dDevice->CreateInputLayout(layout, size, pBytecode->GetBufferPointer(), 
-		pBytecode->GetBufferSize(), &pVertexLayout);
-	assert(SUCCEEDED(hr));
-
-	SAFE_RELEASE( pErrorBlob );
-	SAFE_RELEASE( pBytecode );
-	return pVertexLayout;
-}
-
-
-template<typename T>
-Shader<T>::Shader( ID3D11Device* d3dDevice, LPCTSTR srcFile, LPCSTR szEntryPoint, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
-{
-	HRESULT hr; 
-	
 	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
 #if defined( DEBUG ) || defined( _DEBUG )
 	// Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
@@ -76,11 +15,10 @@ Shader<T>::Shader( ID3D11Device* d3dDevice, LPCTSTR srcFile, LPCSTR szEntryPoint
 	// the release configuration of this program.
 	dwShaderFlags |= D3DCOMPILE_DEBUG;
 #endif
-	
-	ID3D10Blob* pBytecode = 0;
+
 	ID3DBlob* pErrorBlob;
-	hr = D3DX11CompileFromFile( srcFile, defines, NULL, szEntryPoint, ShaderFactory::GetShaderProfileString<T>(), 
-		dwShaderFlags, 0, NULL, &pBytecode, &pErrorBlob, NULL );
+	hr = D3DX11CompileFromFile( szFileName, defines, NULL, szEntryPoint, szShaderModel, 
+		dwShaderFlags, 0, NULL, ppBlobOut, &pErrorBlob, NULL );
 
 	if( FAILED(hr) )
 	{
@@ -88,21 +26,29 @@ Shader<T>::Shader( ID3D11Device* d3dDevice, LPCTSTR srcFile, LPCSTR szEntryPoint
 			OutputDebugStringA( (char*)pErrorBlob->GetBufferPointer() );
 		SAFE_RELEASE( pErrorBlob );
 
-		 throw std::exception("Error compiling shader");
+		throw std::exception("Error compiling shader");
 	}
 	SAFE_RELEASE( pErrorBlob );
 
-	mShader = ShaderFactory::CreateShader<T>(d3dDevice, pBytecode->GetBufferPointer(), pBytecode->GetBufferSize());
-	SAFE_RELEASE( pBytecode );
+	return S_OK;
 }
 
-template<typename T>
-Shader<T>::~Shader( void )
+ID3D11InputLayout* ShaderFactory::CreateVertexLayout( ID3D11Device* d3dDevice, const D3D11_INPUT_ELEMENT_DESC* layout, int size, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
 {
-	SAFE_RELEASE( mShader );
+	ID3DBlob* pBytecode = NULL;
+	HRESULT hr = CompileShaderFromFile(srcFile, functionName, defines, GetShaderProfileString<ID3D11VertexShader>(), &pBytecode);
+
+	ID3D11InputLayout* retVal = nullptr;
+
+	if (SUCCEEDED(hr))
+		d3dDevice->CreateInputLayout(layout, size, pBytecode->GetBufferPointer(), pBytecode->GetBufferSize(), &retVal);
+
+	SAFE_RELEASE( pBytecode );
+
+	return retVal;
 }
 
-
-// Explicit template instantiation
-template class Shader<ID3D11VertexShader>;
-template class Shader<ID3D11PixelShader>;
+shared_ptr<GeometryShader> ShaderFactory::CreateGeometryShaderWithStreamOutput( ID3D11Device* d3dDevice, const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
+{
+	return nullptr;
+}
