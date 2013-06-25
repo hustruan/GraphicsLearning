@@ -33,9 +33,8 @@ using std::shared_ptr;
 
 struct ShaderFactory
 {
-	template<typename T>
-	static shared_ptr<T> 
-	CreateShader(ID3D11Device* d3dDevice, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines = 0)
+	template<typename T>	
+	static shared_ptr<T>  CreateShader(ID3D11Device* d3dDevice, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines = 0)
 	{
 		shared_ptr<T> retVal;
 
@@ -50,14 +49,9 @@ struct ShaderFactory
 		return retVal;
 	}
 
-	static ID3D11InputLayout*
-	CreateVertexLayout(ID3D11Device* d3dDevice, const D3D11_INPUT_ELEMENT_DESC* layout, int size, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines = 0);
+	static ID3D11InputLayout* CreateVertexLayout(ID3D11Device* d3dDevice, const D3D11_INPUT_ELEMENT_DESC* layout, int size, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines = 0);
 
-	static shared_ptr<GeometryShader> 
-	CreateGeometryShaderWithStreamOutput(ID3D11Device* d3dDevice, const void *pShaderBytecode,
-		SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries,
-		const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream,
-		LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines = 0);
+	static shared_ptr<GeometryShader> CreateGeometryShaderWithStreamOutput(ID3D11Device* d3dDevice, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines = 0);
 
 private:
 	static HRESULT CompileShaderFromFile( LPCTSTR szFileName, LPCSTR szEntryPoint, CONST D3D10_SHADER_MACRO *defines, LPCSTR szShaderModel, ID3DBlob** ppBlobOut );

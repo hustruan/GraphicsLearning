@@ -91,7 +91,7 @@ GPUQuadVSOut GPUQuadVS(in uint lightIndex : SV_VertexID)
 
 	float lightRadius = LightAttenuation.y;
 	
-	output.QuadCoord = CalculateLightBound(LightPosition, lightRadius, CameraNearFar.y, Projection._11, Projection._22);
+	output.QuadCoord = CalculateLightBound(LightPosition, lightRadius, CameraNearFar.x, Projection._11, Projection._22);
 	
 	float quadDepth = max(CameraNearFar.x, LightPosition.z - lightRadius);
 	float4 quadClip = mul(float4(0.0f, 0.0f, quadDepth, 1.0f), Projection);
@@ -103,7 +103,7 @@ GPUQuadVSOut GPUQuadVS(in uint lightIndex : SV_VertexID)
 
 struct GPUQuadGSOut
 {
-	float2 oTex     : TEXCOORD0;
+	float3 oTex     : TEXCOORD0;
 	float3 oViewRay : TEXCOORD1;
 	float4 oPosCS   : SV_Position;
 };
@@ -121,7 +121,7 @@ void GPUQuadGS(point GPUQuadVSOut input[1], inout TriangleStream<GPUQuadGSOut> q
 		float4 posVS;
 
 		output.oPosCS.xy = input[0].QuadCoord.xw; // [-1,  1]
-		output.oTex = ConvertUV(output.oPosCS.xy);
+		output.oTex = float3(output.oPosCS.xy, output.oPosCS.w);
 		
 		posVS = mul(output.oPosCS, InvProj);
 	    output.oViewRay = float3(posVS.xy / posVS.z, 1.0f);       // Proj to Z=1 plane
@@ -129,7 +129,7 @@ void GPUQuadGS(point GPUQuadVSOut input[1], inout TriangleStream<GPUQuadGSOut> q
 		quadStream.Append(output);
 
 		output.oPosCS.xy = input[0].QuadCoord.zw; // [ 1,  1]
-		output.oTex = ConvertUV(output.oPosCS.xy);
+		output.oTex = float3(output.oPosCS.xy, output.oPosCS.w);
 
 		posVS = mul(output.oPosCS, InvProj);
 	    output.oViewRay = float3(posVS.xy / posVS.z, 1.0f);
@@ -137,16 +137,16 @@ void GPUQuadGS(point GPUQuadVSOut input[1], inout TriangleStream<GPUQuadGSOut> q
 		quadStream.Append(output);
 
 		output.oPosCS.xy = input[0].QuadCoord.xy; // [-1, -1]
-		output.oTex = ConvertUV(output.oPosCS.xy);
-		
+		output.oTex = float3(output.oPosCS.xy, output.oPosCS.w);
+
 		posVS = mul(output.oPosCS, InvProj);
 	    output.oViewRay = float3(posVS.xy / posVS.z, 1.0f);
 
 		quadStream.Append(output);
 
 		output.oPosCS.xy = input[0].QuadCoord.zy; // [ 1, -1]
-		output.oTex = ConvertUV(output.oPosCS.xy);
-		
+		output.oTex = float3(output.oPosCS.xy, output.oPosCS.w);
+
 		posVS = mul(output.oPosCS, InvProj);
 	    output.oViewRay = float3(posVS.xy / posVS.z, 1.0f);
 

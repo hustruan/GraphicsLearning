@@ -28,12 +28,20 @@ enum LightCullTechnique
 	Cull_Deferred_Tile,
 };
 
+enum LightingMethod
+{
+	Lighting_Forward,
+	Lighting_Deferred,
+};
+
 class SSAO
 {
 public:
 	SSAO(ID3D11Device* d3dDevice);
 	~SSAO(void);
 
+	void SetLightingMethod(LightingMethod method) { mLightingMethod = method; }
+	void SetLightCullTechnique(LightCullTechnique tech) { mCullTechnique = tech; }
 	void SetLightPrePass(bool b) { mLighting = b; }
 
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
@@ -45,6 +53,9 @@ public:
 	 * Forward only render the directional light
 	 */
 	void RenderForward(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
+		const Scene& scene, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+
+	void RenderDeferred(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
 		const Scene& scene, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 private:
@@ -69,6 +80,9 @@ private:
 
 private:
 	
+	LightingMethod mLightingMethod;
+	LightCullTechnique mCullTechnique;
+
 	bool mLighting;
 
 	UINT mGBufferWidth, mGBufferHeight; 
@@ -80,6 +94,9 @@ private:
 	ID3D11Buffer* mPerObjectConstants;
 	ID3D11Buffer* mAOParamsConstants;
 	ID3D11Buffer* mLightConstants;
+
+	ID3D11Buffer* mStreamOutputGPU;
+	ID3D11Buffer* mStreamOutputCPU;
 
 	shared_ptr<Texture2D> mDepthBuffer;
 	ID3D11DepthStencilView* mDepthBufferReadOnlyDSV;

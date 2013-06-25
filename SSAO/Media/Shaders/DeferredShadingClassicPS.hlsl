@@ -76,35 +76,27 @@ float4 DeferredRenderingPS(
 	float3 N = normalize(DecodeNormal( tap0.rgb )); 
 	float shininess = tap0.a * 256.0f;
 
-	float nDotl = dot(N, L);
-
-	float4 tap1 = GBuffer1.Sample(PointSampler, tex);
-
-		// Get Diffuse Albedo and Specular
-	float3 diffuseAlbedo = tap1.rgb;
-	float3 specularAlbedo = tap1.aaa;
+	float nDotl = dot(N, L);	
 
 	if(nDotl > 0)
 	{
 		float3 V = normalize(-positionVS);
 		float3 H = normalize(L + V);
 
-		//float4 tap1 = GBuffer1.Sample(PointSampler, tex);
+		float4 tap1 = GBuffer1.Sample(PointSampler, tex);
 
-		//// Get Diffuse Albedo and Specular
-		//float3 diffuseAlbedo = tap1.rgb;
-		//float3 specularAlbedo = tap1.aaa;
+		// Get Diffuse Albedo and Specular
+		float3 diffuseAlbedo = tap1.rgb;
+		float3 specularAlbedo = tap1.aaa;
 
 		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
 		final *= LightColor * nDotl * attenuation;
 	}
 
-	return float4(diffuseAlbedo, 1.0f);
-
 	//Additively blend is not free, discard pixel not contributing any light	  
-	//if(dot(final.rgb, 1.0) == 0) discard;
+	if(dot(final.rgb, 1.0) == 0) discard;
 
-	//return float4(final, 1.0f);
+	return float4(final, 1.0f);
 }
 
 #endif

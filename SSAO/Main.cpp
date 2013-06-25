@@ -24,7 +24,9 @@ CDXUTDialog                 g_HUD;                  // manages the 3D
 CD3DSettingsDlg             g_D3DSettingsDlg;       // Device settings dialog
 CDXUTComboBox*              g_SceneSelectCombo;
 CDXUTComboBox*              g_ShadingSelectCombo;
+CDXUTComboBox*              g_LightCullCombo;
 CDXUTCheckBox*              g_LightPrePassCheck;
+CDXUTCheckBox*              g_LightAnimationCheck;
 CDXUTTextHelper*            g_TextHelper;
 CFirstPersonCamera          g_Camera;               // A FPS camera
 
@@ -39,13 +41,6 @@ enum SceneSelection
 	Scene_Sponza,
 };
 
-enum ShadingSelection
-{
-	Shading_Forward,
-	Shading_DeferredShading,
-};
-
-
 //--------------------------------------------------------------------------------------
 // UI control IDs
 //--------------------------------------------------------------------------------------
@@ -55,6 +50,8 @@ enum ShadingSelection
 #define IDC_SCENE_SELECTION     5
 #define IDC_SHADING_SELECTION   6
 #define IDC_DEFERRED_LIGHTING   7
+#define IDC_LIGHT_CULL          8
+#define IDC_LIGHT_ANIMATION     9
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext );
 
@@ -87,6 +84,18 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 		{
 			if(g_SSAO) 
 				g_SSAO->SetLightPrePass(g_LightPrePassCheck->GetChecked());
+		}
+		break;
+	case IDC_LIGHT_CULL:
+		{
+			if(g_SSAO) 
+				g_SSAO->SetLightCullTechnique(static_cast<LightCullTechnique>(PtrToUlong(g_LightCullCombo->GetSelectedData())));
+		}
+		break;
+	case IDC_SHADING_SELECTION:
+		{
+			if(g_SSAO) 
+				g_SSAO->SetLightingMethod(static_cast<LightingMethod>(PtrToUlong(g_ShadingSelectCombo->GetSelectedData())));
 		}
 		break;
 	}
@@ -172,7 +181,7 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 {
 	g_Camera.FrameMove(fElapsedTime);
 
-	if (g_LightAnimation)
+	if (g_LightAnimationCheck->GetChecked() && g_LightAnimation)
 		g_LightAnimation->Move(fElapsedTime);
 }
 
@@ -212,16 +221,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
 
-	ShadingSelection shadingType = static_cast<ShadingSelection>(PtrToUlong(g_ShadingSelectCombo->GetSelectedData()));
-	switch(shadingType)
-	{
-	case Shading_Forward:
-		g_SSAO->RenderForward(pd3dImmediateContext, pRTV, pDSV, *g_Scene, *g_LightAnimation, g_Camera, &viewport);
-		break;
-	case Shading_DeferredShading:
-		g_SSAO->Render(pd3dImmediateContext, pRTV, pDSV, *g_Scene, *g_LightAnimation, g_Camera, &viewport);
-		break;
-	}
+	g_SSAO->Render(pd3dImmediateContext, pRTV, pDSV, *g_Scene, *g_LightAnimation, g_Camera, &viewport);
 
 	// reset render target
 	pd3dImmediateContext->RSSetViewports(1, &viewport);
@@ -457,19 +457,31 @@ void InitUI()
 	g_HUD.Init( &g_DialogResourceManager );
 	g_HUD.SetCallback(OnGUIEvent);
 
-	int iY = 10, width = 170;
+	int iY = 20, width = 200;
 	g_HUD.AddButton( IDC_TOGGLEFULLSCREEN, L"Toggle full screen", 0, iY, width, 23 );
 	g_HUD.AddButton( IDC_TOGGLEREF, L"Toggle REF (F3)", 0, iY += 36, width, 23, VK_F3 );
 	g_HUD.AddButton( IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY += 36, width, 23, VK_F2 );
+	
 	g_HUD.AddComboBox(IDC_SCENE_SELECTION, 0, iY +=36, width, 23, 0, false, &g_SceneSelectCombo);
 	g_SceneSelectCombo->AddItem(L"Power Plant", ULongToPtr(Scene_Power_Plant));
 	g_SceneSelectCombo->AddItem(L"Sponza", ULongToPtr(Scene_Sponza));
+	
 	g_HUD.AddComboBox(IDC_SHADING_SELECTION, 0, iY +=36, width, 23, 0, false, &g_ShadingSelectCombo);
-	g_ShadingSelectCombo->AddItem(L"Forward", ULongToPtr(Shading_Forward));
-	g_ShadingSelectCombo->AddItem(L"Deferred Shading", ULongToPtr(Shading_DeferredShading));
+	g_ShadingSelectCombo->AddItem(L"Forward", ULongToPtr(Lighting_Forward));
+	g_ShadingSelectCombo->AddItem(L"Deferred", ULongToPtr(Lighting_Deferred));
+
+	g_HUD.AddComboBox(IDC_LIGHT_CULL, 0, iY +=36, width, 23, 0, false, &g_LightCullCombo);
+	g_LightCullCombo->AddItem(L"Cull_Forward_None", ULongToPtr(Cull_Forward_None));
+	g_LightCullCombo->AddItem(L"Cull_Forward_PreZ_None", ULongToPtr(Cull_Forward_PreZ_None));
+	g_LightCullCombo->AddItem(L"Cull_Deferred_Volume", ULongToPtr(Cull_Deferred_Volume));
+	g_LightCullCombo->AddItem(L"Cull_Deferred_Quad", ULongToPtr(Cull_Deferred_Quad));
+	g_LightCullCombo->AddItem(L"Cull_Deferred_Tile", ULongToPtr(Cull_Deferred_Tile));
 
 	g_HUD.AddCheckBox(IDC_DEFERRED_LIGHTING, L"Light Pre-Pass", 0, iY += 36, width, 23, 0, false, false, &g_LightPrePassCheck);
 	g_LightPrePassCheck->SetChecked(false);
+	
+	g_HUD.AddCheckBox(IDC_LIGHT_ANIMATION, L"Light Animation", 0, iY += 36, width, 23, 0, false, false, &g_LightAnimationCheck);
+	g_LightAnimationCheck->SetChecked(true);
 
 	g_HUD.SetSize(width, iY);
 }

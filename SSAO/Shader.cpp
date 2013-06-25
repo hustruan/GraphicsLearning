@@ -48,7 +48,21 @@ ID3D11InputLayout* ShaderFactory::CreateVertexLayout( ID3D11Device* d3dDevice, c
 	return retVal;
 }
 
-shared_ptr<GeometryShader> ShaderFactory::CreateGeometryShaderWithStreamOutput( ID3D11Device* d3dDevice, const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
+shared_ptr<GeometryShader> ShaderFactory::CreateGeometryShaderWithStreamOutput( ID3D11Device* d3dDevice, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream, LPCTSTR srcFile, LPCSTR functionName, CONST D3D10_SHADER_MACRO *defines /*= 0*/ )
 {
-	return nullptr;
+	ID3DBlob* pBytecode = NULL;
+	HRESULT hr = CompileShaderFromFile(srcFile, functionName, defines, GetShaderProfileString<ID3D11GeometryShader>(), &pBytecode);
+
+	shared_ptr<GeometryShader> retVal = nullptr;
+
+	if (SUCCEEDED(hr))
+	{
+		ID3D11GeometryShader *shader = 0;
+		hr = d3dDevice->CreateGeometryShaderWithStreamOutput(pBytecode->GetBufferPointer(), pBytecode->GetBufferSize(), pSODeclaration, NumEntries,
+			pBufferStrides, NumStrides, RasterizedStream, NULL, &shader);
+
+		retVal = std::make_shared<GeometryShader>(shader);
+	}
+
+	return retVal;
 }
