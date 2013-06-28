@@ -24,6 +24,12 @@ float2 ConvertUV(in float2 posCS)
 	return 0.5f * float2(posCS.x, -posCS.y) + float2(0.5f, 0.5f);
 }
 
+
+float2 ConvertCS(in float2 uv)
+{
+	return uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
+}
+
 /**
  * @brief Convert non-linear ZBuffer depth to linear view space depth
  *

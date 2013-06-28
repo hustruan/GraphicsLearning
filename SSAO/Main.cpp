@@ -22,11 +22,6 @@
 CDXUTDialogResourceManager  g_DialogResourceManager; // manager for shared resources of dialogs
 CDXUTDialog                 g_HUD;                  // manages the 3D   
 CD3DSettingsDlg             g_D3DSettingsDlg;       // Device settings dialog
-CDXUTComboBox*              g_SceneSelectCombo;
-CDXUTComboBox*              g_ShadingSelectCombo;
-CDXUTComboBox*              g_LightCullCombo;
-CDXUTCheckBox*              g_LightPrePassCheck;
-CDXUTCheckBox*              g_LightAnimationCheck;
 CDXUTTextHelper*            g_TextHelper;
 CFirstPersonCamera          g_Camera;               // A FPS camera
 
@@ -52,6 +47,9 @@ enum SceneSelection
 #define IDC_DEFERRED_LIGHTING   7
 #define IDC_LIGHT_CULL          8
 #define IDC_LIGHT_ANIMATION     9
+#define IDC_STATIC_AO           10
+#define IDC_SLIDER_AO           11
+#define IDC_COMBOBOX_AO         12 
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext );
 
@@ -70,6 +68,8 @@ void InitApp()
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext )
 {
+	WCHAR szTemp[256];
+
 	switch( nControlID )
 	{
 	case IDC_TOGGLEFULLSCREEN:
@@ -83,19 +83,38 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 	case IDC_DEFERRED_LIGHTING:
 		{
 			if(g_SSAO) 
-				g_SSAO->SetLightPrePass(g_LightPrePassCheck->GetChecked());
+				g_SSAO->mLightPrePass = g_HUD.GetCheckBox(IDC_DEFERRED_LIGHTING)->GetChecked();
 		}
 		break;
 	case IDC_LIGHT_CULL:
 		{
 			if(g_SSAO) 
-				g_SSAO->SetLightCullTechnique(static_cast<LightCullTechnique>(PtrToUlong(g_LightCullCombo->GetSelectedData())));
+				g_SSAO->mCullTechnique = static_cast<LightCullTechnique>(
+				PtrToUlong(g_HUD.GetComboBox(IDC_LIGHT_CULL)->GetSelectedData()));
 		}
 		break;
 	case IDC_SHADING_SELECTION:
 		{
 			if(g_SSAO) 
-				g_SSAO->SetLightingMethod(static_cast<LightingMethod>(PtrToUlong(g_ShadingSelectCombo->GetSelectedData())));
+				g_SSAO->mLightingMethod = static_cast<LightingMethod>(
+				PtrToUlong(g_HUD.GetComboBox(IDC_SHADING_SELECTION)->GetSelectedData()));
+		}
+		break;
+	case IDC_SLIDER_AO:
+		{
+			float value = (float)g_HUD.GetSlider( IDC_SLIDER_AO )->GetValue();
+			float offsetScale = 0.0001f + (value/100.0f) * (0.01f - 0.001f);
+			swprintf_s( szTemp, L"AO OffsetScale: %.5f", offsetScale );
+			g_HUD.GetStatic( IDC_STATIC_AO )->SetText( szTemp );
+
+			if (g_SSAO)
+				g_SSAO->mAOOffsetScale = offsetScale;
+		}
+		break;
+	case IDC_COMBOBOX_AO:
+		{
+			if (g_SSAO)
+				g_SSAO->mAOTechnique = static_cast<AmbientOcclusionTechnique>(PtrToUlong(g_HUD.GetComboBox(IDC_COMBOBOX_AO)->GetSelectedData()));	
 		}
 		break;
 	}
@@ -181,7 +200,8 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 {
 	g_Camera.FrameMove(fElapsedTime);
 
-	if (g_LightAnimationCheck->GetChecked() && g_LightAnimation)
+	bool lightAnimated = g_HUD.GetCheckBox(IDC_LIGHT_ANIMATION)->GetChecked();
+	if (lightAnimated && g_LightAnimation)
 		g_LightAnimation->Move(fElapsedTime);
 }
 
@@ -373,8 +393,8 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     DXUTCreateWindow( L"SSAO" );
 
     // Only require 10-level hardware
-    DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true,  1280, 720);
-    DXUTMainLoop(); // Enter into the DXUT ren  der loop
+    DXUTCreateDevice( D3D_FEATURE_LEVEL_10_0, true,  1280, 720);
+    DXUTMainLoop(); // Enter into the DXUT render loop
 
     // Perform any application-level cleanup here
 
@@ -395,7 +415,7 @@ void InitScene(ID3D11Device* d3dDevice)
 
 	D3DXMATRIX world;
 
-	SceneSelection scene = static_cast<SceneSelection>(PtrToUlong(g_SceneSelectCombo->GetSelectedData()));
+	SceneSelection scene = static_cast<SceneSelection>(PtrToUlong(g_HUD.GetComboBox(IDC_SCENE_SELECTION)->GetSelectedData()));
 	switch (scene)
 	{
 	case Scene_Power_Plant: 
@@ -456,32 +476,46 @@ void InitUI()
 	g_D3DSettingsDlg.Init( &g_DialogResourceManager );
 	g_HUD.Init( &g_DialogResourceManager );
 	g_HUD.SetCallback(OnGUIEvent);
+	
+	CDXUTComboBox *pCombo;
+	CDXUTCheckBox *pCheck;
 
 	int iY = 20, width = 200;
 	g_HUD.AddButton( IDC_TOGGLEFULLSCREEN, L"Toggle full screen", 0, iY, width, 23 );
 	g_HUD.AddButton( IDC_TOGGLEREF, L"Toggle REF (F3)", 0, iY += 36, width, 23, VK_F3 );
 	g_HUD.AddButton( IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY += 36, width, 23, VK_F2 );
 	
-	g_HUD.AddComboBox(IDC_SCENE_SELECTION, 0, iY +=36, width, 23, 0, false, &g_SceneSelectCombo);
-	g_SceneSelectCombo->AddItem(L"Power Plant", ULongToPtr(Scene_Power_Plant));
-	g_SceneSelectCombo->AddItem(L"Sponza", ULongToPtr(Scene_Sponza));
+	g_HUD.AddComboBox(IDC_SCENE_SELECTION, 0, iY +=36, width, 23, 0, false, &pCombo);
+	pCombo->SetDropHeight( 15 );
+	pCombo->AddItem(L"Power Plant", ULongToPtr(Scene_Power_Plant));
+	pCombo->AddItem(L"Sponza", ULongToPtr(Scene_Sponza));
 	
-	g_HUD.AddComboBox(IDC_SHADING_SELECTION, 0, iY +=36, width, 23, 0, false, &g_ShadingSelectCombo);
-	g_ShadingSelectCombo->AddItem(L"Forward", ULongToPtr(Lighting_Forward));
-	g_ShadingSelectCombo->AddItem(L"Deferred", ULongToPtr(Lighting_Deferred));
+	iY +=36;
+	g_HUD.AddComboBox(IDC_SHADING_SELECTION, 0, iY +=36, width, 23, 0, false, &pCombo);
+	pCombo->SetDropHeight( 15 );
+	pCombo->AddItem(L"Forward", ULongToPtr(Lighting_Forward));
+	pCombo->AddItem(L"Deferred", ULongToPtr(Lighting_Deferred));
 
-	g_HUD.AddComboBox(IDC_LIGHT_CULL, 0, iY +=36, width, 23, 0, false, &g_LightCullCombo);
-	g_LightCullCombo->AddItem(L"Cull_Forward_None", ULongToPtr(Cull_Forward_None));
-	g_LightCullCombo->AddItem(L"Cull_Forward_PreZ_None", ULongToPtr(Cull_Forward_PreZ_None));
-	g_LightCullCombo->AddItem(L"Cull_Deferred_Volume", ULongToPtr(Cull_Deferred_Volume));
-	g_LightCullCombo->AddItem(L"Cull_Deferred_Quad", ULongToPtr(Cull_Deferred_Quad));
-	g_LightCullCombo->AddItem(L"Cull_Deferred_Tile", ULongToPtr(Cull_Deferred_Tile));
+	g_HUD.AddComboBox(IDC_LIGHT_CULL, 0, iY +=36, width, 23, 0, false, &pCombo);
+	pCombo->SetDropHeight( 50 );
+	pCombo->AddItem(L"Cull_Forward_None", ULongToPtr(Cull_Forward_None));
+	pCombo->AddItem(L"Cull_Forward_PreZ_None", ULongToPtr(Cull_Forward_PreZ_None));
+	pCombo->AddItem(L"Cull_Deferred_Volume", ULongToPtr(Cull_Deferred_Volume));
+	pCombo->AddItem(L"Cull_Deferred_Quad", ULongToPtr(Cull_Deferred_Quad));
+	pCombo->AddItem(L"Cull_Deferred_Tile", ULongToPtr(Cull_Deferred_Tile));
 
-	g_HUD.AddCheckBox(IDC_DEFERRED_LIGHTING, L"Light Pre-Pass", 0, iY += 36, width, 23, 0, false, false, &g_LightPrePassCheck);
-	g_LightPrePassCheck->SetChecked(false);
-	
-	g_HUD.AddCheckBox(IDC_LIGHT_ANIMATION, L"Light Animation", 0, iY += 36, width, 23, 0, false, false, &g_LightAnimationCheck);
-	g_LightAnimationCheck->SetChecked(true);
+	g_HUD.AddCheckBox(IDC_DEFERRED_LIGHTING, L"Light Pre-Pass", 0, iY += 36, width, 23, 0, false, false, &pCheck);
+	pCheck->SetChecked(false);
+	g_HUD.AddCheckBox(IDC_LIGHT_ANIMATION, L"Light Animation", 0, iY += 36, width, 23, 0, false, false, &pCheck);
+	pCheck->SetChecked(true);
+
+	iY +=36;
+	g_HUD.AddComboBox(IDC_COMBOBOX_AO, 0, iY +=36, width, 23, 0, false, &pCombo);
+	pCombo->AddItem(L"Cryteck", ULongToPtr(AO_Cryteck));
+	pCombo->AddItem(L"Maria", ULongToPtr(AO_Maria));
+
+	g_HUD.AddStatic( IDC_STATIC_AO, L"AO OffsetScale", 0, iY += 36, width, 23);
+	g_HUD.AddSlider(IDC_SLIDER_AO, 0,  iY += 23, width, 23, 0, 100, 50, false);
 
 	g_HUD.SetSize(width, iY);
 }

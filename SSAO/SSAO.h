@@ -34,15 +34,17 @@ enum LightingMethod
 	Lighting_Deferred,
 };
 
+enum AmbientOcclusionTechnique
+{
+	AO_Cryteck = 0,
+	AO_Maria,
+};
+
 class SSAO
 {
 public:
 	SSAO(ID3D11Device* d3dDevice);
 	~SSAO(void);
-
-	void SetLightingMethod(LightingMethod method) { mLightingMethod = method; }
-	void SetLightCullTechnique(LightCullTechnique tech) { mCullTechnique = tech; }
-	void SetLightPrePass(bool b) { mLighting = b; }
 
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
 
@@ -78,13 +80,18 @@ private:
 
 	void EdgeAA(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
 
-private:
-	
+public:
+
+	bool mLightPrePass;
+
 	LightingMethod mLightingMethod;
 	LightCullTechnique mCullTechnique;
+	AmbientOcclusionTechnique mAOTechnique;
 
-	bool mLighting;
+	float mAOOffsetScale;
 
+private:
+	
 	UINT mGBufferWidth, mGBufferHeight; 
 
 	ID3D11InputLayout* mMeshVertexLayout;

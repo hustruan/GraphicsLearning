@@ -29,8 +29,10 @@ struct PerObjectConstants
 __declspec(align(16))
 struct SSAOParams
 {
-	D3DXVECTOR4 ViewParams;
-	D3DXVECTOR4 AOParams;
+	float DefaultAO;
+	float Radius;
+	float NormRange;
+	float DeltaSacle;
 };
 
 // CBuffer use a Float4Align
@@ -47,15 +49,17 @@ struct LightCBuffer
 #pragma warning( pop ) 
 
 SSAO::SSAO( ID3D11Device* d3dDevice )
-	: mDepthBufferReadOnlyDSV(0), mLighting(false), mCullTechnique(Cull_Forward_None), mLightingMethod(Lighting_Forward)
+	: mDepthBufferReadOnlyDSV(0), mLightPrePass(false), mCullTechnique(Cull_Forward_None), mLightingMethod(Lighting_Forward)
 {
+	mAOOffsetScale = 0.001;
+
 	mFullQuadSprite = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\FullQuadSprite.hlsl", "FullQuadSpritePS", nullptr);
 
 	mGBufferVS = ShaderFactory::CreateShader<VertexShader>(d3dDevice, L".\\Media\\Shaders\\GBuffer.hlsl", "GBufferVS", nullptr);
 	mGBufferPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\GBuffer.hlsl", "GBufferPS", nullptr);
 
 	mFullScreenTriangleVS = ShaderFactory::CreateShader<VertexShader>(d3dDevice, L".\\Media\\Shaders\\FullScreenTriangle.hlsl", "FullScreenTriangleVS", nullptr);
-	//mSSAOCrytekPS = std::make_shared<PixelShader>(d3dDevice, L".\\Media\\Shaders\\SSAO.hlsl", "SSAOPS", nullptr);
+	mSSAOCrytekPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\SSAO.hlsl", "SSAOPS", nullptr);
 
 	mEdgeAAPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\EdgeDetect.hlsl", "DL_GetEdgeWeight", nullptr);
 
@@ -477,7 +481,9 @@ void SSAO::RenderDeferred( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTa
 	RenderGBuffer(d3dDeviceContext, scene, viewerCamera, viewport);
 
 	// Deferred shading
-	ComputeShading(d3dDeviceContext, lights, viewerCamera, viewport);	
+	//ComputeShading(d3dDeviceContext, lights, viewerCamera, viewport);	
+
+	RenderSSAO(d3dDeviceContext, viewerCamera, viewport);
 
 	// Post-Process
 	PostProcess(d3dDeviceContext, backBuffer, backDepth, viewport);
@@ -494,7 +500,7 @@ void SSAO::Render( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView
 
 		constants->Proj = *viewerCamera.GetProjMatrix();
 		D3DXMatrixInverse(&constants->InvProj, NULL, viewerCamera.GetProjMatrix());
-		constants->NearFar = D3DXVECTOR4(viewerCamera.GetNearClip(), viewerCamera.GetFarClip(), 0.0f, 0.0f);
+		constants->NearFar = D3DXVECTOR4(viewerCamera.GetNearClip(), viewerCamera.GetFarClip(), mAOOffsetScale, 0.0f);
 
 		d3dDeviceContext->Unmap(mPerFrameConstants, 0);
 	}
@@ -564,25 +570,25 @@ void SSAO::RenderGBuffer( ID3D11DeviceContext* d3dDeviceContext, const Scene& sc
 
 void SSAO::RenderSSAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
 {
-	ID3D11RenderTargetView * renderTargets[1] = { mAOBuffer->GetRenderTargetView() };
-	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, mDepthBuffer->GetDepthStencilView());
-
 	const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
-	d3dDeviceContext->ClearRenderTargetView(renderTargets[0], zeros);
-
+	d3dDeviceContext->ClearRenderTargetView(mLitBuffer->GetRenderTargetView(), zeros);
+	
 	// Fill AO constants
 	{
+		auto s = sizeof SSAOParams;
+
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		d3dDeviceContext->Map(mAOParamsConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 		SSAOParams* constants = static_cast<SSAOParams *>(mappedResource.pData);
 
-		constants->ViewParams = D3DXVECTOR4((float)mGBufferWidth, (float)mGBufferHeight, viewerCamera.GetNearClip(), viewerCamera.GetFarClip() );
-		constants->AOParams = D3DXVECTOR4( 0.5f, 0.5f, 3.0f, 200.0f );	
+		constants->DefaultAO = 0.5f;
+		constants->Radius = 0.5f;
+		constants->NormRange = 3.0f;
+		constants->DeltaSacle = 200.0f;
 
 		d3dDeviceContext->Unmap(mAOParamsConstants, 0);
 	}
 
-	
 	// Render full sreen quad
 	d3dDeviceContext->IASetInputLayout(0);
 	d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -593,20 +599,37 @@ void SSAO::RenderSSAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 	d3dDeviceContext->RSSetState(mRasterizerState);
 	d3dDeviceContext->RSSetViewports(1, viewport);
 
-	// GBuffer normal and depth
-	d3dDeviceContext->PSSetShaderResources(0, 1, &mGBufferSRV.front());
-	d3dDeviceContext->PSSetShaderResources(1, 1, &mNoiseSRV);
-	d3dDeviceContext->PSSetShader(mSSAOCrytekPS->GetShader(), 0, 0);
-	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mAOParamsConstants);
+	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
+	d3dDeviceContext->PSSetConstantBuffers(1, 1, &mAOParamsConstants);
 
+	ID3D11ShaderResourceView* srv[3] = { mGBufferSRV[0], mNoiseSRV, mGBufferSRV[2] };
+	d3dDeviceContext->PSSetShaderResources(0, 3, srv);
+	ID3D11SamplerState* samplers[2] = { mGBufferSampler, mNoiseSampler };
+	d3dDeviceContext->PSSetSamplers(0, 2, samplers);
+	d3dDeviceContext->PSSetShader(mSSAOCrytekPS->GetShader(), 0, 0);
+
+	ID3D11RenderTargetView * renderTargets[1] = { mLitBuffer->GetRenderTargetView() };
+	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, nullptr);
+	d3dDeviceContext->OMSetDepthStencilState(mDepthDisableState, 0);
     d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
 
 	d3dDeviceContext->Draw(3, 0);
+
+	// Cleanup (aka make the runtime happy)
+	d3dDeviceContext->VSSetShader(0, 0, 0);
+	d3dDeviceContext->PSSetShader(0, 0, 0);
+	d3dDeviceContext->OMSetRenderTargets(0, 0, 0);
+	ID3D11ShaderResourceView* nullSRV[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+	d3dDeviceContext->VSSetShaderResources(0, 8, nullSRV);
+	d3dDeviceContext->PSSetShaderResources(0, 8, nullSRV);
+	ID3D11Buffer* nullBuffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+	d3dDeviceContext->VSSetConstantBuffers(0, 8, nullBuffer);
+	d3dDeviceContext->PSSetConstantBuffers(0, 8, nullBuffer);
 }
 
 void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
 {
-	std::shared_ptr<Texture2D> &accumulateBuffer = mLighting ? mLightAccumulateBuffer : mLitBuffer;
+	std::shared_ptr<Texture2D> &accumulateBuffer = mLightPrePass ? mLightAccumulateBuffer : mLitBuffer;
 
 	const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
 	d3dDeviceContext->ClearRenderTargetView(accumulateBuffer->GetRenderTargetView(), zeros);
@@ -621,10 +644,10 @@ void SSAO::ComputeShading( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, mDepthBufferReadOnlyDSV);
 	d3dDeviceContext->OMSetBlendState(mLightingBlendState, 0, 0xFFFFFFFF);
 
-	DrawPointLight(d3dDeviceContext, lights, viewerCamera);
-	//DrawDirectionalLight(d3dDeviceContext, lights, viewerCamera);
+	//DrawPointLight(d3dDeviceContext, lights, viewerCamera);
+	DrawDirectionalLight(d3dDeviceContext, lights, viewerCamera);
 
-	if (mLighting)
+	if (mLightPrePass)
 	{
 		// final shading pass
 		const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
@@ -681,7 +704,7 @@ void SSAO::DrawDirectionalLight( ID3D11DeviceContext* d3dDeviceContext, const Li
 	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
 	d3dDeviceContext->PSSetConstantBuffers(1, 1, &mLightConstants);
 	d3dDeviceContext->PSSetShader(
-		mLighting ? mDeferredLightingPS[LT_DirectionalLigt]->GetShader() : mDeferredShadingPS[LT_DirectionalLigt]->GetShader(), 0, 0);
+		mLightPrePass ? mDeferredLightingPS[LT_DirectionalLigt]->GetShader() : mDeferredShadingPS[LT_DirectionalLigt]->GetShader(), 0, 0);
 
 	d3dDeviceContext->RSSetState(mRasterizerState);
 	d3dDeviceContext->OMSetDepthStencilState(mDepthDisableState, 0);
@@ -734,7 +757,7 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 		//UINT offset = 0;
 		//d3dDeviceContext->SOSetTargets(1, &mStreamOutputGPU, &offset);
 
-		d3dDeviceContext->PSSetShader(mLighting ? mDeferredLightingPS[LT_PointLight]->GetShader() : mDeferredShadingPS[LT_PointLight]->GetShader(), 0, 0);
+		d3dDeviceContext->PSSetShader(mLightPrePass ? mDeferredLightingPS[LT_PointLight]->GetShader() : mDeferredShadingPS[LT_PointLight]->GetShader(), 0, 0);
 		d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
 		d3dDeviceContext->PSSetConstantBuffers(1, 1, &mLightConstants);
 	}
@@ -744,7 +767,7 @@ void SSAO::DrawPointLight( ID3D11DeviceContext* d3dDeviceContext, const LightAni
 		d3dDeviceContext->VSSetShader(mDeferredShadingVS[LT_PointLight]->GetShader(), 0, 0);
 		d3dDeviceContext->VSSetConstantBuffers(0, 1, &mPerObjectConstants);	
 
-		d3dDeviceContext->PSSetShader(mLighting ? mDeferredLightingPS[LT_PointLight]->GetShader() : mDeferredShadingPS[LT_PointLight]->GetShader(), 0, 0);
+		d3dDeviceContext->PSSetShader(mLightPrePass ? mDeferredLightingPS[LT_PointLight]->GetShader() : mDeferredShadingPS[LT_PointLight]->GetShader(), 0, 0);
 		d3dDeviceContext->PSSetConstantBuffers(0, 1, &mPerFrameConstants);
 		d3dDeviceContext->PSSetConstantBuffers(1, 1, &mLightConstants);		
 	}
