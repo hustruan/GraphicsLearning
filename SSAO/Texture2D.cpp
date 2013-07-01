@@ -172,23 +172,50 @@ void Texture2D::SaveTextureToPfm( ID3D11DeviceContext *pContext, const char* pDe
 
 	std::vector<float> texData(width * height * 3);
 
-	float* pDest = &texData[0];
-	for (int y = 0; y < height; ++y)
+	switch(desc.Format)
 	{
-		float* pColor = (float*)((unsigned char*)texmap.pData + texmap.RowPitch * (height - 1 - y));
-		for (int x = 0; x < width; ++x)
+	case DXGI_FORMAT_R32_FLOAT:
 		{
-			*pDest++ = *pColor++;
-			*pDest++ = *pColor++;
-			*pDest++ = *pColor++;
+			float* pDest = &texData[0];
+			for (int y = 0; y < height; ++y)
+			{
+				float* pColor = (float*)((unsigned char*)texmap.pData + texmap.RowPitch * (height - 1 - y));
+				for (int x = 0; x < width; ++x)
+				{
+					*pDest++ = *pColor;
+					*pDest++ = *pColor;
+					*pDest++ = *pColor;
 
-			 pColor++;
+					pColor++;
+				}
+			}
+
+			WritePfm(pDestFile, width, height, 3, &texData[0]);
 		}
+		break;
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+		{
+			float* pDest = &texData[0];
+			for (int y = 0; y < height; ++y)
+			{
+				float* pColor = (float*)((unsigned char*)texmap.pData + texmap.RowPitch * (height - 1 - y));
+				for (int x = 0; x < width; ++x)
+				{
+					*pDest++ = *pColor++;
+					*pDest++ = *pColor++;
+					*pDest++ = *pColor++;
+
+					pColor++;
+				}
+			}
+
+			WritePfm(pDestFile, width, height, 3, &texData[0]);
+		}
+		break;
+	default:
+		break;
 	}
-
+	
 	pContext->Unmap(pTextureStaging, 0);
-
-	SAFE_RELEASE(pTextureStaging);
-
-	WritePfm(pDestFile, width, height, 3, &texData[0]);
+	SAFE_RELEASE(pTextureStaging);	
 }

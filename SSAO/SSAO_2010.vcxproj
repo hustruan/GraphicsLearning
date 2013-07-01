@@ -384,6 +384,7 @@
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Utility.cpp" />
+    <ClInclude Include="BoundingVolume.h" />
     <ClInclude Include="LightAnimation.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
@@ -428,7 +429,6 @@
     <None Include="Media\Shaders\GBuffer.hlsl" />
     <None Include="Media\Shaders\GPUScreenQuad.hlsl" />
     <None Include="Media\Shaders\HBAO.hlsl" />
-    <None Include="Media\Shaders\PerFrameConstants.hlsl" />
     <None Include="Media\Shaders\Rendering.hlsl" />
     <None Include="Media\Shaders\SSAO.hlsl" />
     <None Include="Media\Shaders\Utility.hlsl" />

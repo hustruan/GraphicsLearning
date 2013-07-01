@@ -3,6 +3,7 @@
 #include "DXUT.h"
 #include "SDKmisc.h"
 #include "Shader.h"
+#include "ShaderContanst.h"
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -37,7 +38,7 @@ enum LightingMethod
 enum AmbientOcclusionTechnique
 {
 	AO_Cryteck = 0,
-	AO_Maria,
+	AO_HBAO
 };
 
 class SSAO
@@ -50,10 +51,8 @@ public:
 
 	void Render(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
 		const Scene& scene, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
-
-	/**
-	 * Forward only render the directional light
-	 */
+	
+	// Only directional light
 	void RenderForward(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth,
 		const Scene& scene, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
@@ -82,7 +81,16 @@ private:
 
 	void EdgeAA(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
 
+
+private:
+
 	void CreateHBAORandomTexture(ID3D11Device* pDevice);
+
+	void CreateShaderEffect(ID3D11Device* d3dDevice);
+
+	void CreateConstantBuffers(ID3D11Device* d3dDevice);
+
+	void CreateRenderStates(ID3D11Device* d3dDevice);
 
 public:
 
@@ -93,6 +101,9 @@ public:
 	AmbientOcclusionTechnique mAOTechnique;
 
 	float mAOOffsetScale;
+	
+	BlurParams mBlurParams;
+	HBAOParams mHBAOParams;
 
 private:
 	
@@ -107,6 +118,7 @@ private:
 	ID3D11Buffer* mLightConstants;
 
 	ID3D11Buffer* mHBAOParamsConstant;
+	ID3D11Buffer* mBlurParamsConstants;
 
 	ID3D11Buffer* mStreamOutputGPU;
 	ID3D11Buffer* mStreamOutputCPU;
@@ -122,6 +134,7 @@ private:
 	shared_ptr<Texture2D> mLightAccumulateBuffer;
 	shared_ptr<Texture2D> mLitBuffer;
 	shared_ptr<Texture2D> mAOBuffer;
+	shared_ptr<Texture2D> mBlurBuffer;
 
 	// GBuffer Shaders
 	shared_ptr<VertexShader> mGBufferVS;
@@ -148,11 +161,13 @@ private:
 	shared_ptr<PixelShader> mDebugPS;
 
 	shared_ptr<PixelShader> mEdgeAAPS;
-
+	
 	// SSAO Shaders
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
 	shared_ptr<PixelShader> mSSAOCrytekPS;
 	shared_ptr<PixelShader> mHBAOPS;
+	shared_ptr<PixelShader> mBlurXPS;
+	shared_ptr<PixelShader> mBlurYPS;
 
 	ID3D11Texture2D* mHBAORandomTexture;
 	ID3D11ShaderResourceView* mHBAORandomSRV;

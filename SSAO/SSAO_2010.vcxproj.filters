@@ -88,9 +88,6 @@
     <None Include="Media\Shaders\FullScreenTriangle.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\PerFrameConstants.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Media\Shaders\Utility.hlsl">
       <Filter>Shaders</Filter>
     </None>
@@ -154,6 +151,7 @@
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Utility.h" />
     <ClInclude Include="ShaderContanst.h" />
+    <ClInclude Include="BoundingVolume.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

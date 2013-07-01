@@ -66,10 +66,10 @@ float4 ForwardPS( ForwardVSOut input ) : SV_Target0
 		
 	    float3 diffuseAlbedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
 
-		
 		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
 		final *= LightColor * nDotl;
 	}
 
+	
 	return float4(final, 1.0);
 }

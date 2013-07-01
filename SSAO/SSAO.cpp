@@ -37,26 +37,6 @@ struct SSAOParams
 	float DeltaSacle;
 };
 
-__declspec(align(16))
-struct HBAOParams
-{
-	D3DXVECTOR2 AOResolution;
-	D3DXVECTOR2 InvAOResolution;
-
-	D3DXVECTOR2 FocalLen;
-	D3DXVECTOR2 ProjDepthScale; //(M33, M43)
-
-	float Radius;
-	float RadiusSquared;
-	float InvRadiusSquared;
-	float MaxRadiusPixels;
-
-	float TanAngleBias;
-	float Strength;
-
-	float pad[2];
-};
-
 
 // CBuffer use a Float4Align
 #pragma warning(push)
@@ -77,6 +57,76 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 {
 	mAOOffsetScale = 0.001;
 
+	CreateShaderEffect(d3dDevice);
+
+	CreateRenderStates(d3dDevice);
+
+	CreateConstantBuffers(d3dDevice);	
+
+	// Load light volume mesh 
+	{
+		HRESULT hr;
+
+		mPointLightProxy = new CDXUTSDKMesh;
+		mSpotLightProxy = new CDXUTSDKMesh;
+		
+		V(mPointLightProxy->Create( d3dDevice, L".\\Media\\PointLightProxy.sdkmesh"));
+		V(mSpotLightProxy->Create( d3dDevice, L".\\Media\\SpotLightProxy.sdkmesh"));
+	}
+
+	// Load noise texture
+	SAFE_RELEASE(mNoiseSRV);
+	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\vector_noise.dds", NULL, NULL, &mNoiseSRV, NULL );
+	DXUT_SetDebugName(mNoiseSRV, "mNoiseSRV");
+
+	SAFE_RELEASE(mBestFitNormalSRV);
+	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\BestFitNormal.dds", NULL, NULL, &mBestFitNormalSRV, NULL );
+	DXUT_SetDebugName(mNoiseSRV, "mBestFitNormalSRV");
+
+	CreateHBAORandomTexture(d3dDevice);
+}
+
+SSAO::~SSAO(void)
+{
+	SAFE_RELEASE(mMeshVertexLayout);
+	SAFE_RELEASE(mLightProxyVertexLayout);
+	
+	SAFE_RELEASE(mDiffuseSampler);
+	SAFE_RELEASE(mPointClampSampler);
+	SAFE_RELEASE(mPointWarpSampler);
+
+	SAFE_RELEASE(mRasterizerFrontState);
+	SAFE_RELEASE(mRasterizerState);
+
+	SAFE_RELEASE(mDepthState);
+	SAFE_RELEASE(mDepthDisableState);
+	SAFE_RELEASE(mDepthLEQualState);
+	SAFE_RELEASE(mDepthGreaterState);
+	SAFE_RELEASE(mVolumeStencilState);
+
+	SAFE_RELEASE(mPerFrameConstants);
+	SAFE_RELEASE(mAOParamsConstants);
+	SAFE_RELEASE(mPerObjectConstants);
+	SAFE_RELEASE(mLightConstants);
+	SAFE_RELEASE(mHBAOParamsConstant);
+	SAFE_RELEASE(mBlurParamsConstants);
+
+	SAFE_RELEASE(mNoiseSRV);
+	SAFE_RELEASE(mBestFitNormalSRV);
+	SAFE_RELEASE(mDepthBufferReadOnlyDSV);
+	SAFE_RELEASE(mHBAORandomSRV);
+	SAFE_RELEASE(mHBAORandomTexture);
+	
+	SAFE_RELEASE(mGeometryBlendState);
+	SAFE_RELEASE(mLightingBlendState);
+
+	
+	delete mPointLightProxy;	
+	delete mSpotLightProxy;	
+}
+
+void SSAO::CreateShaderEffect( ID3D11Device* d3dDevice )
+{
 	mFullQuadSprite = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\FullQuadSprite.hlsl", "FullQuadSpritePS", nullptr);
 
 	mGBufferVS = ShaderFactory::CreateShader<VertexShader>(d3dDevice, L".\\Media\\Shaders\\GBuffer.hlsl", "GBufferVS", nullptr);
@@ -86,11 +136,14 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 	mSSAOCrytekPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\SSAO.hlsl", "SSAOPS", nullptr);
 	mHBAOPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\HBAO.hlsl", "HBAO", nullptr);
 
+	mBlurXPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\CrossBilateralFilter.hlsl", "BlurX", nullptr);
+	mBlurYPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\CrossBilateralFilter.hlsl", "BlurY", nullptr);
+
 	mEdgeAAPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\EdgeDetect.hlsl", "DL_GetEdgeWeight", nullptr);
 
 	mForwardDirectionalVS = ShaderFactory::CreateShader<VertexShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardVS", nullptr);
 	mForwardDirectionalPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\ForwardRendering.hlsl", "ForwardPS", nullptr);
-	
+
 	mScreenQuadVS = ShaderFactory::CreateShader<VertexShader>(d3dDevice, L".\\Media\\Shaders\\GPUScreenQuad.hlsl", "GPUQuadVS", nullptr);
 	mScreenQuadGS = ShaderFactory::CreateShader<GeometryShader>(d3dDevice, L".\\Media\\Shaders\\GPUScreenQuad.hlsl", "GPUQuadGS", nullptr);
 
@@ -135,7 +188,7 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		mDeferredShadingPS[LT_DirectionalLigt] = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredShadingClassicPS.hlsl", "DeferredRenderingPS", defines);
 		mDeferredLightingPS[LT_DirectionalLigt] = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredLightingPassPS.hlsl", "DeferredLightingPS", defines);
 	}
-	
+
 	// Deferred light shading pass
 	mDeferredLightingShadingPS = ShaderFactory::CreateShader<PixelShader>(d3dDevice, L".\\Media\\Shaders\\DeferredShadingPassPS.hlsl", "DeferredShadingPS", nullptr);
 
@@ -169,7 +222,77 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		mLightProxyVertexLayout = ShaderFactory::CreateVertexLayout(d3dDevice, layout, ARRAYSIZE(layout),  L".\\Media\\Shaders\\DeferredShadingClassicVS.hlsl", "DeferredRenderingVS", defines);
 		DXUT_SetDebugName(mLightProxyVertexLayout, "mLightProxyVertexLayout");
 	}
+}
 
+void SSAO::CreateConstantBuffers( ID3D11Device* d3dDevice )
+{
+	{
+		CD3D11_BUFFER_DESC desc(sizeof(PerFrameConstants), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		d3dDevice->CreateBuffer(&desc, nullptr, &mPerFrameConstants);
+		DXUT_SetDebugName(mPerFrameConstants, "mPerFrameConstants");
+	}
+
+	{
+		CD3D11_BUFFER_DESC desc(sizeof(PerObjectConstants), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		d3dDevice->CreateBuffer(&desc, nullptr, &mPerObjectConstants);
+		DXUT_SetDebugName(mPerObjectConstants, "mPerObjectConstants");
+	}
+
+	{
+		CD3D11_BUFFER_DESC desc(sizeof(SSAOParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		d3dDevice->CreateBuffer(&desc, nullptr, &mAOParamsConstants);
+		DXUT_SetDebugName(mAOParamsConstants, "mAOParamsConstants");
+	}
+
+	{
+		mHBAOParams.Radius = 1.0f;
+		mHBAOParams.TanAngleBias = tanf(D3DXToRadian(10));
+
+		CD3D11_BUFFER_DESC desc(sizeof(HBAOParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		d3dDevice->CreateBuffer(&desc, nullptr, &mHBAOParamsConstant);
+		DXUT_SetDebugName(mHBAOParamsConstant, "mHBAOParams");
+	}
+
+	{
+		mBlurParams.BlurRadius = 7.0f;
+		
+		float sigma = (mBlurParams.BlurRadius + 1) / 2;
+		mBlurParams.BlurFalloff = 1.0f / (2 * sigma * sigma);
+
+		mBlurParams.BlurSharpness = 18.0f;
+
+		CD3D11_BUFFER_DESC desc(sizeof(BlurParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		d3dDevice->CreateBuffer(&desc, nullptr, &mBlurParamsConstants);
+		DXUT_SetDebugName(mBlurParamsConstants, "mBlurParamsConstants");
+	}
+
+	//{
+	//	CD3D11_BUFFER_DESC desc(sizeof(float)*10*10, D3D11_BIND_STREAM_OUTPUT, D3D11_USAGE_DEFAULT, 0);
+	//	d3dDevice->CreateBuffer(&desc, nullptr, &mStreamOutputGPU);
+	//	DXUT_SetDebugName(mStreamOutputGPU, "mStreamOutputGPU");
+
+	//	desc.BindFlags		= 0;
+	//	desc.CPUAccessFlags	= D3D11_CPU_ACCESS_READ;
+	//	desc.Usage			= D3D11_USAGE_STAGING;
+	//	desc.StructureByteStride = 0;
+	//	desc.MiscFlags = 0;
+
+	//	d3dDevice->CreateBuffer(&desc, nullptr, &mStreamOutputCPU);
+	//	DXUT_SetDebugName(mStreamOutputCPU, "mStreamOutputCPU");
+	//}
+
+	{
+		CD3D11_BUFFER_DESC desc(sizeof(LightCBuffer), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+		d3dDevice->CreateBuffer(&desc, nullptr, &mLightConstants);
+		DXUT_SetDebugName(mLightConstants, "mPointLightConstants");
+	}
+
+
+
+}
+
+void SSAO::CreateRenderStates( ID3D11Device* d3dDevice )
+{
 	// Create standard rasterizer state, cull back face
 	{
 		CD3D11_RASTERIZER_DESC desc(D3D11_DEFAULT);
@@ -293,112 +416,6 @@ SSAO::SSAO( ID3D11Device* d3dDevice )
 		d3dDevice->CreateSamplerState(&desc, &mPointClampSampler);	
 		DXUT_SetDebugName(mPointClampSampler, "mPointClampSampler");
 	}
-
-	// Create constant buffer
-	{
-		CD3D11_BUFFER_DESC desc(sizeof(PerFrameConstants), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		d3dDevice->CreateBuffer(&desc, nullptr, &mPerFrameConstants);
-		DXUT_SetDebugName(mPerFrameConstants, "mPerFrameConstants");
-	}
-
-	{
-		CD3D11_BUFFER_DESC desc(sizeof(PerObjectConstants), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		d3dDevice->CreateBuffer(&desc, nullptr, &mPerObjectConstants);
-		DXUT_SetDebugName(mPerObjectConstants, "mPerObjectConstants");
-	}
-
-	{
-		CD3D11_BUFFER_DESC desc(sizeof(SSAOParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		d3dDevice->CreateBuffer(&desc, nullptr, &mAOParamsConstants);
-		DXUT_SetDebugName(mAOParamsConstants, "mAOParamsConstants");
-	}
-
-	{
-		CD3D11_BUFFER_DESC desc(sizeof(HBAOParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		d3dDevice->CreateBuffer(&desc, nullptr, &mHBAOParamsConstant);
-		DXUT_SetDebugName(mHBAOParamsConstant, "mHBAOParams");
-	}
-
-	//{
-	//	CD3D11_BUFFER_DESC desc(sizeof(float)*10*10, D3D11_BIND_STREAM_OUTPUT, D3D11_USAGE_DEFAULT, 0);
-	//	d3dDevice->CreateBuffer(&desc, nullptr, &mStreamOutputGPU);
-	//	DXUT_SetDebugName(mStreamOutputGPU, "mStreamOutputGPU");
-
-	//	desc.BindFlags		= 0;
-	//	desc.CPUAccessFlags	= D3D11_CPU_ACCESS_READ;
-	//	desc.Usage			= D3D11_USAGE_STAGING;
-	//	desc.StructureByteStride = 0;
-	//	desc.MiscFlags = 0;
-
-	//	d3dDevice->CreateBuffer(&desc, nullptr, &mStreamOutputCPU);
-	//	DXUT_SetDebugName(mStreamOutputCPU, "mStreamOutputCPU");
-	//}
-
-	{
-		CD3D11_BUFFER_DESC desc(sizeof(LightCBuffer), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-		d3dDevice->CreateBuffer(&desc, nullptr, &mLightConstants);
-		DXUT_SetDebugName(mLightConstants, "mPointLightConstants");
-	}
-
-	// Load light volume mesh 
-	{
-		HRESULT hr;
-
-		mPointLightProxy = new CDXUTSDKMesh;
-		mSpotLightProxy = new CDXUTSDKMesh;
-		
-		V(mPointLightProxy->Create( d3dDevice, L".\\Media\\PointLightProxy.sdkmesh"));
-		V(mSpotLightProxy->Create( d3dDevice, L".\\Media\\SpotLightProxy.sdkmesh"));
-	}
-
-	// Load noise texture
-	SAFE_RELEASE(mNoiseSRV);
-	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\vector_noise.dds", NULL, NULL, &mNoiseSRV, NULL );
-	DXUT_SetDebugName(mNoiseSRV, "mNoiseSRV");
-
-	SAFE_RELEASE(mBestFitNormalSRV);
-	D3DX11CreateShaderResourceViewFromFile( d3dDevice, L".\\Media\\Textures\\BestFitNormal.dds", NULL, NULL, &mBestFitNormalSRV, NULL );
-	DXUT_SetDebugName(mNoiseSRV, "mBestFitNormalSRV");
-
-	CreateHBAORandomTexture(d3dDevice);
-}
-
-SSAO::~SSAO(void)
-{
-	SAFE_RELEASE(mMeshVertexLayout);
-	SAFE_RELEASE(mLightProxyVertexLayout);
-	
-	SAFE_RELEASE(mDiffuseSampler);
-	SAFE_RELEASE(mPointClampSampler);
-	SAFE_RELEASE(mPointWarpSampler);
-
-	SAFE_RELEASE(mRasterizerFrontState);
-	SAFE_RELEASE(mRasterizerState);
-
-	SAFE_RELEASE(mDepthState);
-	SAFE_RELEASE(mDepthDisableState);
-	SAFE_RELEASE(mDepthLEQualState);
-	SAFE_RELEASE(mDepthGreaterState);
-	SAFE_RELEASE(mVolumeStencilState);
-
-	SAFE_RELEASE(mPerFrameConstants);
-	SAFE_RELEASE(mAOParamsConstants);
-	SAFE_RELEASE(mPerObjectConstants);
-	SAFE_RELEASE(mLightConstants);
-	SAFE_RELEASE(mHBAOParamsConstant);
-
-	SAFE_RELEASE(mNoiseSRV);
-	SAFE_RELEASE(mBestFitNormalSRV);
-	SAFE_RELEASE(mDepthBufferReadOnlyDSV);
-	SAFE_RELEASE(mHBAORandomSRV);
-	SAFE_RELEASE(mHBAORandomTexture);
-	
-	SAFE_RELEASE(mGeometryBlendState);
-	SAFE_RELEASE(mLightingBlendState);
-
-	
-	delete mPointLightProxy;	
-	delete mSpotLightProxy;	
 }
 
 void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc )
@@ -408,9 +425,15 @@ void SSAO::OnD3D11ResizedSwapChain( ID3D11Device* d3dDevice, const DXGI_SURFACE_
 
 	SAFE_RELEASE(mDepthBufferReadOnlyDSV);
 
+	mAOBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
+		DXGI_FORMAT_R32_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+
+	mBlurBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
+		DXGI_FORMAT_R32_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+
 	// lit buffers
 	mLitBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
-		DXGI_FORMAT_R32G32B32A32_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+		DXGI_FORMAT_R16G16B16A16_FLOAT, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 
 	// deferred lighting accumulation buffer
 	mLightAccumulateBuffer = std::make_shared<Texture2D>(d3dDevice, backBufferDesc->Width, backBufferDesc->Height,
@@ -519,11 +542,11 @@ void SSAO::RenderDeferred( ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTa
 	RenderGBuffer(d3dDeviceContext, scene, viewerCamera, viewport);
 
 	// Deferred shading
-	ComputeShading(d3dDeviceContext, lights, viewerCamera, viewport);	
+	//ComputeShading(d3dDeviceContext, lights, viewerCamera, viewport);	
 
 	//RenderSSAO(d3dDeviceContext, viewerCamera, viewport);
 
-	//RenderHBAO(d3dDeviceContext, viewerCamera, viewport);
+	RenderHBAO(d3dDeviceContext, viewerCamera, viewport);
 
 	// Post-Process
 	PostProcess(d3dDeviceContext, backBuffer, backDepth, viewport);
@@ -670,7 +693,7 @@ void SSAO::RenderSSAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 void SSAO::RenderHBAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport )
 {
 	const float zeros[4] = {0.0f, 0.0f, 0.0f, 0.0f};	
-	d3dDeviceContext->ClearRenderTargetView(mLitBuffer->GetRenderTargetView(), zeros);
+	d3dDeviceContext->ClearRenderTargetView(mAOBuffer->GetRenderTargetView(), zeros);
 
 	const D3DXMATRIX& cameraProj = *viewerCamera.GetProjMatrix();
 
@@ -678,21 +701,20 @@ void SSAO::RenderHBAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 	{
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		d3dDeviceContext->Map(mHBAOParamsConstant, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		HBAOParams* constants = static_cast<HBAOParams *>(mappedResource.pData);
 
-		constants->FocalLen = D3DXVECTOR2(cameraProj._11, cameraProj._22);
-		constants->ProjDepthScale = D3DXVECTOR2(cameraProj._33, cameraProj._43);
+		mHBAOParams.FocalLen = D3DXVECTOR2(cameraProj._11, cameraProj._22);
+		mHBAOParams.ProjDepthScale = D3DXVECTOR2(cameraProj._33, cameraProj._43);
 
-		constants->AOResolution = D3DXVECTOR2(viewport->Width, viewport->Height);
-		constants->InvAOResolution = D3DXVECTOR2(1.0f / viewport->Width, 1.0f / viewport->Height);
+		mHBAOParams.AOResolution = D3DXVECTOR2(viewport->Width, viewport->Height);
+		mHBAOParams.InvAOResolution = D3DXVECTOR2(1.0f / viewport->Width, 1.0f / viewport->Height);
 
-		constants->Radius = 1.0f * mAOOffsetScale;
-		constants->RadiusSquared = constants->Radius * constants->Radius;
-		constants->InvRadiusSquared = 1.0f / constants->RadiusSquared;
-		constants->MaxRadiusPixels = 0.1f * (std::min)(viewport->Width, viewport->Height);
+		mHBAOParams.RadiusSquared = mHBAOParams.Radius * mHBAOParams.Radius;
+		mHBAOParams.InvRadiusSquared = 1.0f / mHBAOParams.RadiusSquared;
+		mHBAOParams.MaxRadiusPixels = 0.1f * (std::min)(viewport->Width, viewport->Height);
 
-		constants->TanAngleBias = tanf(D3DXToRadian(10));
-		constants->Strength = 1.0;
+		mHBAOParams.Strength = 1.0;
+
+		memcpy(mappedResource.pData, &mHBAOParams, sizeof(mHBAOParams));
 
 		d3dDeviceContext->Unmap(mHBAOParamsConstant, 0);
 	}
@@ -715,12 +737,51 @@ void SSAO::RenderHBAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 	d3dDeviceContext->PSSetSamplers(0, 2, samplers);
 	d3dDeviceContext->PSSetShader(mHBAOPS->GetShader(), 0, 0);
 
-	ID3D11RenderTargetView * renderTargets[1] = { mLitBuffer->GetRenderTargetView() };
+	ID3D11RenderTargetView * renderTargets[1] = { mAOBuffer->GetRenderTargetView() };
 	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, nullptr);
 	d3dDeviceContext->OMSetDepthStencilState(mDepthDisableState, 0);
 	d3dDeviceContext->OMSetBlendState(mGeometryBlendState, 0, 0xFFFFFFFF);
 
 	d3dDeviceContext->Draw(3, 0);
+
+	d3dDeviceContext->OMSetRenderTargets(0, 0, 0);
+
+	//------------------------------------------------------------------------------------------------------
+	{
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		d3dDeviceContext->Map(mBlurParamsConstants, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+		mBlurParams.CameraNear = viewerCamera.GetNearClip();
+		mBlurParams.CameraFar = viewerCamera.GetFarClip();
+		mBlurParams.InvResolution = D3DXVECTOR2(1.0f / viewport->Width, 1.0f / viewport->Height);
+
+		memcpy(mappedResource.pData, &mBlurParams, sizeof(mBlurParams));
+		
+		d3dDeviceContext->Unmap(mBlurParamsConstants, 0);
+	}
+
+	// Blur X
+	srv[1] = mAOBuffer->GetShaderResourceView(); 
+	d3dDeviceContext->PSSetShaderResources(0, 2, srv);
+
+	d3dDeviceContext->PSSetShader(mBlurXPS->GetShader(), 0, 0);
+	d3dDeviceContext->PSSetConstantBuffers(0, 1, &mBlurParamsConstants);
+
+	renderTargets[0] = mBlurBuffer->GetRenderTargetView();
+	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, nullptr);
+	d3dDeviceContext->Draw(3, 0);
+	
+	d3dDeviceContext->OMSetRenderTargets(0, 0, 0);
+
+	// Blur Y
+	srv[1] = mBlurBuffer->GetShaderResourceView();
+	d3dDeviceContext->PSSetShaderResources(0, 2, srv);
+	d3dDeviceContext->PSSetShader(mBlurYPS->GetShader(), 0, 0);
+
+	renderTargets[0] = mLitBuffer->GetRenderTargetView();
+	d3dDeviceContext->OMSetRenderTargets(1, renderTargets, nullptr);
+	d3dDeviceContext->Draw(3, 0);
+
 
 	// Cleanup (aka make the runtime happy)
 	d3dDeviceContext->VSSetShader(0, 0, 0);
@@ -733,6 +794,7 @@ void SSAO::RenderHBAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 	d3dDeviceContext->VSSetConstantBuffers(0, 8, nullBuffer);
 	d3dDeviceContext->PSSetConstantBuffers(0, 8, nullBuffer);
 
+	//mBlurBuffer->SaveTextureToPfm(d3dDeviceContext, "test.pfm");
 	//mLitBuffer->SaveTextureToPfm(d3dDeviceContext, "test.pfm");
 }
 

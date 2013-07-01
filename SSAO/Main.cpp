@@ -21,6 +21,9 @@
 
 CDXUTDialogResourceManager  g_DialogResourceManager; // manager for shared resources of dialogs
 CDXUTDialog                 g_HUD;                  // manages the 3D   
+CDXUTDialog                 g_HbaoHUD;                  // manages the 3D   
+
+
 CD3DSettingsDlg             g_D3DSettingsDlg;       // Device settings dialog
 CDXUTTextHelper*            g_TextHelper;
 CFirstPersonCamera          g_Camera;               // A FPS camera
@@ -39,17 +42,23 @@ enum SceneSelection
 //--------------------------------------------------------------------------------------
 // UI control IDs
 //--------------------------------------------------------------------------------------
-#define IDC_TOGGLEFULLSCREEN    1
-#define IDC_TOGGLEREF           3
-#define IDC_CHANGEDEVICE        4
-#define IDC_SCENE_SELECTION     5
-#define IDC_SHADING_SELECTION   6
-#define IDC_DEFERRED_LIGHTING   7
-#define IDC_LIGHT_CULL          8
-#define IDC_LIGHT_ANIMATION     9
-#define IDC_STATIC_AO           10
-#define IDC_SLIDER_AO           11
-#define IDC_COMBOBOX_AO         12 
+#define IDC_TOGGLEFULLSCREEN			1
+#define IDC_TOGGLEREF					3
+#define IDC_CHANGEDEVICE				4
+#define IDC_SCENE_SELECTION				5
+#define IDC_SHADING_SELECTION			6
+#define IDC_DEFERRED_LIGHTING			7
+#define IDC_LIGHT_CULL					8
+#define IDC_LIGHT_ANIMATION				9
+#define IDC_STATIC_AO_RADIUS			10
+#define IDC_SLIDER_AO_RADIUS            11
+#define IDC_STATIC_AO_BAISANGLE			12
+#define IDC_SLIDER_AO_BAISANGLE         13
+#define IDC_STATIC_BLUR_WIDTH			14
+#define IDC_SLIDER_BLUR_WIDTH	        15
+#define IDC_STATIC_BLUR_SHARPNESS		16
+#define IDC_SLIDER_BLUR_SHARPNESS       17
+#define IDC_COMBOBOX_AO					18 
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext );
 
@@ -68,6 +77,8 @@ void InitApp()
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext )
 {
+#define Lerp(v, min, max) ((min)*(1 - (v)) + (max)*(v))
+
 	WCHAR szTemp[256];
 
 	switch( nControlID )
@@ -100,26 +111,73 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 				PtrToUlong(g_HUD.GetComboBox(IDC_SHADING_SELECTION)->GetSelectedData()));
 		}
 		break;
-	case IDC_SLIDER_AO:
+	case IDC_SLIDER_AO_RADIUS:
 		{
-			float value = (float)g_HUD.GetSlider( IDC_SLIDER_AO )->GetValue();
-			/*float offsetScale = 0.0001f + (value/100.0f) * (0.01f - 0.001f);*/
+			float value = (float)g_HbaoHUD.GetSlider( IDC_SLIDER_AO_RADIUS )->GetValue() / 100.0f;
 
-		    float offsetScale = 1.0f + (value/100.0f) * (5.0f - 1.0f);
-			swprintf_s( szTemp, L"AO OffsetScale: %.5f", offsetScale );
-			g_HUD.GetStatic( IDC_STATIC_AO )->SetText( szTemp );
+			// Map to [0, 5]
+		    float min = 1;
+			float max = 5;
+			
+			value = Lerp(value, min, max);
+			swprintf_s( szTemp, L"AO Radius: %.1f", value );
+			g_HbaoHUD.GetStatic( IDC_STATIC_AO_RADIUS )->SetText( szTemp );
 
 			if (g_SSAO)
-				g_SSAO->mAOOffsetScale = offsetScale;
+				g_SSAO->mHBAOParams.Radius = value;
+		}
+		break;
+	case IDC_SLIDER_AO_BAISANGLE:
+		{
+			float value = (float)g_HbaoHUD.GetSlider( IDC_SLIDER_AO_BAISANGLE )->GetValue() / 100.0f;
+
+			// Map to [0, 60]
+			float min = 0;
+			float max = 60;
+			value = Lerp(value, min, max);
+
+			swprintf_s( szTemp, L"AO Bais Angle: %.1f", value );
+			g_HbaoHUD.GetStatic( IDC_STATIC_AO_BAISANGLE)->SetText( szTemp );
+
+			if (g_SSAO)
+				g_SSAO->mHBAOParams.TanAngleBias = tanf(D3DXToRadian(value));;
+		}
+		break;
+	case IDC_SLIDER_BLUR_WIDTH:
+		{
+			int value = g_HbaoHUD.GetSlider( IDC_SLIDER_BLUR_WIDTH )->GetValue();
+
+			swprintf_s( szTemp, L"Blur Size: %d", 2*value+1 );
+			g_HbaoHUD.GetStatic( IDC_STATIC_BLUR_WIDTH)->SetText( szTemp );
+
+			if (g_SSAO)
+				g_SSAO->mBlurParams.BlurRadius = (float)value;
+		}
+		break;
+	case IDC_SLIDER_BLUR_SHARPNESS:
+		{
+			int value = g_HbaoHUD.GetSlider( IDC_SLIDER_BLUR_SHARPNESS )->GetValue();
+
+			swprintf_s( szTemp, L"Blur Sharpness: %d",value);
+			g_HbaoHUD.GetStatic( IDC_STATIC_BLUR_SHARPNESS)->SetText( szTemp );
+
+			if (g_SSAO)
+				g_SSAO->mBlurParams.BlurSharpness = (float)value * (float)value;
 		}
 		break;
 	case IDC_COMBOBOX_AO:
 		{
 			if (g_SSAO)
+			{
 				g_SSAO->mAOTechnique = static_cast<AmbientOcclusionTechnique>(PtrToUlong(g_HUD.GetComboBox(IDC_COMBOBOX_AO)->GetSelectedData()));	
+				
+				g_HbaoHUD.SetVisible(g_SSAO->mAOTechnique == AO_HBAO);
+			}
 		}
 		break;
 	}
+
+#undef Lerp
 }
 
 //--------------------------------------------------------------------------------------
@@ -187,6 +245,7 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	// Standard HUDs
 	const int border = 20;
 	g_HUD.SetLocation( pBackBufferSurfaceDesc->Width - g_HUD.GetWidth() - border, 0 );
+	g_HbaoHUD.SetLocation( pBackBufferSurfaceDesc->Width - g_HbaoHUD.GetWidth() - border, g_HUD.GetHeight() );
 
 	if (g_SSAO)
 		g_SSAO->OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc);
@@ -250,6 +309,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->OMSetRenderTargets(1, &pRTV, pDSV);
 
 	g_HUD.OnRender( fElapsedTime );
+	g_HbaoHUD.OnRender(fElapsedTime);
+	//AmbientOcclusionTechnique aoTech = static_cast<AmbientOcclusionTechnique>((PtrToUlong(g_HUD.GetComboBox(IDC_COMBOBOX_AO)->GetSelectedData())));
+
 
 	// Render text
 	g_TextHelper->Begin();
@@ -318,6 +380,10 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 
 	// Give the dialogs a chance to handle the message first
 	*pbNoFurtherProcessing = g_HUD.MsgProc( hWnd, uMsg, wParam, lParam );
+	if( *pbNoFurtherProcessing )
+		return 0;
+
+	*pbNoFurtherProcessing = g_HbaoHUD.MsgProc( hWnd, uMsg, wParam, lParam );
 	if( *pbNoFurtherProcessing )
 		return 0;
 
@@ -430,6 +496,9 @@ void InitScene(ID3D11Device* d3dDevice)
 			
 			g_Scene->LoadOpaqueMesh(d3dDevice, L"..\\media\\powerplant\\powerplant.sdkmesh", world);
 
+			D3DXVECTOR3 extent = g_Scene->mWorldBound.Extent();
+			D3DXVECTOR3 center = g_Scene->mWorldBound.Center();
+
 			cameraEye = sceneScaling * D3DXVECTOR3(100.0f, 5.0f, 5.0f);
 			cameraAt = sceneScaling * D3DXVECTOR3(0.0f, 0.0f, 0.0f);		
 		} 
@@ -444,6 +513,9 @@ void InitScene(ID3D11Device* d3dDevice)
 			D3DXMatrixScaling(&world, sceneScaling, sceneScaling, sceneScaling);
 
 			g_Scene->LoadOpaqueMesh(d3dDevice, L".\\Media\\Sponza\\sponza_dds.sdkmesh", world);
+
+			D3DXVECTOR3 extent = g_Scene->mWorldBound.Extent();
+			D3DXVECTOR3 center = g_Scene->mWorldBound.Center();
 
 			cameraEye = sceneScaling * D3DXVECTOR3(1200.0f, 200.0f, 100.0f);
 			cameraAt = sceneScaling * D3DXVECTOR3(0.0f, 0.0f, 0.0f);
@@ -474,11 +546,18 @@ void DestroyScene()
 
 void InitUI()
 {
+#define Default(v, min, max) int((v - min) / (max - min ) * 100.0f )
+
+	WCHAR szTemp[256];
+
 	// Initialize dialogs
 	g_D3DSettingsDlg.Init( &g_DialogResourceManager );
 	g_HUD.Init( &g_DialogResourceManager );
+	g_HbaoHUD.Init( &g_DialogResourceManager );
+
 	g_HUD.SetCallback(OnGUIEvent);
-	
+	g_HbaoHUD.SetCallback(OnGUIEvent);
+
 	//D3DCOLOR DlgColor = 0x88888888;
 	//g_HUD.SetBackgroundColors(DlgColor);
 
@@ -517,10 +596,38 @@ void InitUI()
 	iY +=36;
 	g_HUD.AddComboBox(IDC_COMBOBOX_AO, 0, iY +=36, width, 23, 0, false, &pCombo);
 	pCombo->AddItem(L"Cryteck", ULongToPtr(AO_Cryteck));
-	pCombo->AddItem(L"Maria", ULongToPtr(AO_Maria));
-
-	g_HUD.AddStatic( IDC_STATIC_AO, L"AO OffsetScale", 0, iY += 36, width, 23);
-	g_HUD.AddSlider(IDC_SLIDER_AO, 0,  iY += 23, width, 23, 0, 100, 50, false);
+	pCombo->AddItem(L"HBAO", ULongToPtr(AO_HBAO));
 
 	g_HUD.SetSize(width, iY);
+	
+	// HBAO
+	{
+		D3DCOLOR DlgColor = D3DCOLOR_RGBA(50, 50, 50, 125);
+		g_HbaoHUD.SetBackgroundColors(DlgColor);
+
+		int iYY = 0;
+		swprintf_s( szTemp, L"AO Radius: %.1f", 1.0f);
+		g_HbaoHUD.AddStatic( IDC_STATIC_AO_RADIUS, szTemp, 0, iYY += 36, width, 23);
+		g_HbaoHUD.AddSlider(IDC_SLIDER_AO_RADIUS, 0,  iYY += 23, width, 23, 0, 100, Default(1.0f, 0.0f, 5.0f), false);
+
+		swprintf_s( szTemp, L"Bais Angle: %.1f", 10.0f);
+		g_HbaoHUD.AddStatic( IDC_STATIC_AO_BAISANGLE, szTemp, 0, iYY += 36, width, 23);
+		g_HbaoHUD.AddSlider(IDC_SLIDER_AO_BAISANGLE, 0,  iYY += 23, width, 23, 0, 100, Default(10.0f, 0.0f, 60.0f), false);
+
+		swprintf_s( szTemp, L"Blur Size: %d", 2*7+1);
+		g_HbaoHUD.AddStatic( IDC_STATIC_BLUR_WIDTH, szTemp, 0, iYY += 36, width, 23);
+		g_HbaoHUD.AddSlider(IDC_SLIDER_BLUR_WIDTH, 0,  iYY += 23, width, 23, 0, 16, 7, false);
+
+		swprintf_s( szTemp, L"Blur Sharpness: %d", 18);
+		g_HbaoHUD.AddStatic( IDC_STATIC_BLUR_SHARPNESS, szTemp, 0, iYY += 36, width, 23);
+		g_HbaoHUD.AddSlider(IDC_SLIDER_BLUR_SHARPNESS, 0,  iYY += 23, width, 23, 0, 30, 18, false);
+
+		g_HbaoHUD.SetSize(width, iYY+=23);
+
+		g_HbaoHUD.SetVisible(false);
+	}
+
+	
+	
+#undef Default
 }

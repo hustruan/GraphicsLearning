@@ -24,4 +24,14 @@ void Scene::LoadOpaqueMesh( ID3D11Device* d3dDevice, LPCTSTR filename, const D3D
 	entity.Mesh->Create(d3dDevice, filename);
 	entity.World = worldMatrix;
 	mSceneMeshesOpaque.push_back(entity);
+
+
+	for (size_t i = 0; i < entity.Mesh->GetNumMeshes(); ++i)
+	{
+		D3DXVECTOR3 center = entity.Mesh->GetMeshBBoxCenter(i);
+		D3DXVECTOR3 extent = entity.Mesh->GetMeshBBoxExtents(i);
+		
+		BoundingBox box(center - extent * 0.5f, center + extent * 0.5f);	
+		mWorldBound.Merge(box);
+	}
 }

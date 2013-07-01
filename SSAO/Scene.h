@@ -2,6 +2,7 @@
 
 #include "LightAnimation.h"
 #include "SDKmesh.h"
+#include "BoundingVolume.h"
 #include <vector>
 
 class Scene
@@ -14,6 +15,8 @@ public:
 
 public:
 	LightAnimation mLightAnimation;
+
+	BoundingBox mWorldBound;
 
 	struct SceneMesh
 	{

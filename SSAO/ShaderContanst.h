@@ -23,4 +23,18 @@ struct HBAOParams
 };
 
 
+struct BlurParams
+{
+	D3DXVECTOR2 InvResolution;
+	float  CameraNear;
+	float  CameraFar;
+
+	float BlurRadius;
+	float BlurFalloff;
+	float BlurSharpness;
+
+	float Pading[1];
+};
+
+
 #endif // ShaderContanst_h__
