@@ -387,6 +387,7 @@
     <ClInclude Include="LightAnimation.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="ShaderContanst.h" />
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Utility.h" />
@@ -413,6 +414,7 @@
     <ClCompile Include="DXUT\Optional\DXUTsettingsdlg.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmesh.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
+    <None Include="Media\Shaders\CrossBilateralFilter.hlsl" />
     <None Include="Media\Shaders\DebugVolumePS.hlsl" />
     <None Include="Media\Shaders\DebugVolumeVS.hlsl" />
     <None Include="Media\Shaders\DeferredShadingClassicPS.hlsl" />
@@ -425,6 +427,7 @@
     <None Include="Media\Shaders\FullScreenTriangle.hlsl" />
     <None Include="Media\Shaders\GBuffer.hlsl" />
     <None Include="Media\Shaders\GPUScreenQuad.hlsl" />
+    <None Include="Media\Shaders\HBAO.hlsl" />
     <None Include="Media\Shaders\PerFrameConstants.hlsl" />
     <None Include="Media\Shaders\Rendering.hlsl" />
     <None Include="Media\Shaders\SSAO.hlsl" />

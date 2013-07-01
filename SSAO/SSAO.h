@@ -68,6 +68,8 @@ private:
 
 	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
+	void RenderHBAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+
 	void DrawPointLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
 	void DrawSpotLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
@@ -79,6 +81,8 @@ private:
 	void PostProcess(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, ID3D11DepthStencilView* backDepth, const D3D11_VIEWPORT* viewport);
 
 	void EdgeAA(ID3D11DeviceContext* d3dDeviceContext, ID3D11RenderTargetView* backBuffer, const D3D11_VIEWPORT* viewport);
+
+	void CreateHBAORandomTexture(ID3D11Device* pDevice);
 
 public:
 
@@ -101,6 +105,8 @@ private:
 	ID3D11Buffer* mPerObjectConstants;
 	ID3D11Buffer* mAOParamsConstants;
 	ID3D11Buffer* mLightConstants;
+
+	ID3D11Buffer* mHBAOParamsConstant;
 
 	ID3D11Buffer* mStreamOutputGPU;
 	ID3D11Buffer* mStreamOutputCPU;
@@ -146,14 +152,18 @@ private:
 	// SSAO Shaders
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
 	shared_ptr<PixelShader> mSSAOCrytekPS;
+	shared_ptr<PixelShader> mHBAOPS;
+
+	ID3D11Texture2D* mHBAORandomTexture;
+	ID3D11ShaderResourceView* mHBAORandomSRV;
 
 	// Noise Texture
 	ID3D11ShaderResourceView* mNoiseSRV;
 	ID3D11ShaderResourceView* mBestFitNormalSRV;
 	
 	ID3D11SamplerState* mDiffuseSampler;
-	ID3D11SamplerState* mNoiseSampler;
-	ID3D11SamplerState* mGBufferSampler;
+	ID3D11SamplerState* mPointWarpSampler;
+	ID3D11SamplerState* mPointClampSampler;
 	
 	ID3D11RasterizerState* mRasterizerState;       // Cull back
 	ID3D11RasterizerState* mRasterizerFrontState;  // Cull front

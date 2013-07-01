@@ -124,6 +124,12 @@
     <None Include="Media\Shaders\DeferredShadingPassPS.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Media\Shaders\HBAO.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\CrossBilateralFilter.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
@@ -147,6 +153,7 @@
     <ClInclude Include="LightAnimation.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Utility.h" />
+    <ClInclude Include="ShaderContanst.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

@@ -23,7 +23,7 @@ public:
 	ID3D11DepthStencilView* GetDepthStencilView() const { assert(mDepthStecilView); return mDepthStecilView; }
 	ID3D11ShaderResourceView* GetShaderResourceView() { assert(mShaderResourceView); return mShaderResourceView; }
 
-	void SaveTextureToFile(ID3D11DeviceContext *pContext, D3DX11_IMAGE_FILE_FORMAT fmt, LPCTSTR pDestFile);
+	void SaveTextureToPfm(ID3D11DeviceContext *pContext, const char* pDestFile);
 
 private:
 	// Not implemented
@@ -35,6 +35,8 @@ private:
 		D3D11_RTV_DIMENSION rtvDimension, D3D11_DSV_DIMENSION dsvDimension, D3D11_SRV_DIMENSION srvDimension);
 
 private:
+
+	ID3D11Device* mDevice;
 
 	ID3D11Texture2D* mTexture;
 	

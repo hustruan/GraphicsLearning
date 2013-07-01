@@ -103,7 +103,9 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 	case IDC_SLIDER_AO:
 		{
 			float value = (float)g_HUD.GetSlider( IDC_SLIDER_AO )->GetValue();
-			float offsetScale = 0.0001f + (value/100.0f) * (0.01f - 0.001f);
+			/*float offsetScale = 0.0001f + (value/100.0f) * (0.01f - 0.001f);*/
+
+		    float offsetScale = 1.0f + (value/100.0f) * (5.0f - 1.0f);
 			swprintf_s( szTemp, L"AO OffsetScale: %.5f", offsetScale );
 			g_HUD.GetStatic( IDC_STATIC_AO )->SetText( szTemp );
 
@@ -421,7 +423,7 @@ void InitScene(ID3D11Device* d3dDevice)
 	case Scene_Power_Plant: 
 		{
 			g_LightAnimation->LoadLights(".\\Media\\Animation.txt");
-			g_LightAnimation->RandonPointLight(100);
+			g_LightAnimation->RandonPointLight(1000);
 
 			sceneScaling = 1.0f;
 			D3DXMatrixScaling(&world, sceneScaling, sceneScaling, sceneScaling);
@@ -477,6 +479,9 @@ void InitUI()
 	g_HUD.Init( &g_DialogResourceManager );
 	g_HUD.SetCallback(OnGUIEvent);
 	
+	//D3DCOLOR DlgColor = 0x88888888;
+	//g_HUD.SetBackgroundColors(DlgColor);
+
 	CDXUTComboBox *pCombo;
 	CDXUTCheckBox *pCheck;
 
