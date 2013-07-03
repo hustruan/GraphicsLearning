@@ -256,10 +256,8 @@ void SSAO::CreateConstantBuffers( ID3D11Device* d3dDevice )
 	{
 		mBlurParams.BlurRadius = 7.0f;
 		
-		float sigma = (mBlurParams.BlurRadius + 1) / 2;
-		mBlurParams.BlurFalloff = 1.0f / (2 * sigma * sigma);
-
-		mBlurParams.BlurSharpness = 18.0f;
+		float sharpness = 18.0f;
+		mBlurParams.BlurSharpness = sharpness * sharpness;
 
 		CD3D11_BUFFER_DESC desc(sizeof(BlurParams), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 		d3dDevice->CreateBuffer(&desc, nullptr, &mBlurParamsConstants);
@@ -754,6 +752,11 @@ void SSAO::RenderHBAO( ID3D11DeviceContext* d3dDeviceContext, const CFirstPerson
 		mBlurParams.CameraNear = viewerCamera.GetNearClip();
 		mBlurParams.CameraFar = viewerCamera.GetFarClip();
 		mBlurParams.InvResolution = D3DXVECTOR2(1.0f / viewport->Width, 1.0f / viewport->Height);
+
+		float sigma = (mBlurParams.BlurRadius + 3) / 4;
+		mBlurParams.BlurFalloff = 1.0f / (2 * sigma * sigma);
+
+		//mBlurParams.BlurSharpness = (mBlurParams.BlurRadius + 1) / 2;
 
 		memcpy(mappedResource.pData, &mBlurParams, sizeof(mBlurParams));
 		

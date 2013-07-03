@@ -156,13 +156,13 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 		break;
 	case IDC_SLIDER_BLUR_SHARPNESS:
 		{
-			int value = g_HbaoHUD.GetSlider( IDC_SLIDER_BLUR_SHARPNESS )->GetValue();
+			int sharpness = g_HbaoHUD.GetSlider( IDC_SLIDER_BLUR_SHARPNESS )->GetValue();
 
-			swprintf_s( szTemp, L"Blur Sharpness: %d",value);
+			swprintf_s( szTemp, L"Blur Sharpness: %d",sharpness);
 			g_HbaoHUD.GetStatic( IDC_STATIC_BLUR_SHARPNESS)->SetText( szTemp );
 
 			if (g_SSAO)
-				g_SSAO->mBlurParams.BlurSharpness = (float)value * (float)value;
+				g_SSAO->mBlurParams.BlurSharpness = sharpness * sharpness ;
 		}
 		break;
 	case IDC_COMBOBOX_AO:
@@ -620,7 +620,7 @@ void InitUI()
 
 		swprintf_s( szTemp, L"Blur Sharpness: %d", 18);
 		g_HbaoHUD.AddStatic( IDC_STATIC_BLUR_SHARPNESS, szTemp, 0, iYY += 36, width, 23);
-		g_HbaoHUD.AddSlider(IDC_SLIDER_BLUR_SHARPNESS, 0,  iYY += 23, width, 23, 0, 30, 18, false);
+		g_HbaoHUD.AddSlider(IDC_SLIDER_BLUR_SHARPNESS, 0,  iYY += 23, width, 23, 0, 32, 18, false);
 
 		g_HbaoHUD.SetSize(width, iYY+=23);
 

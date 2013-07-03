@@ -12,26 +12,25 @@ cbuffer CBFConstant : register(b0)
 	float Sharpness;
 };
 
-
 SamplerState PointClampSampler   : register(s0);
 
 Texture2D<float> DepthBuffer     : register(t0);
 Texture2D<float> SourceBuffer    : register(t1);
 
+// Convert to linear [0,1]
 float FetchLinearDepth(float2 uv)
 {
-	float nonLinearDepth = DepthBuffer.SampleLevel(PointClampSampler, uv, 0);
-	
-	return CameraNear * CameraFar/ (CameraFar - (CameraFar - CameraNear) * nonLinearDepth);
+	float nonLinearDepth = DepthBuffer.Sample(PointClampSampler, uv);
+	return CameraNear / (CameraFar - (CameraFar - CameraNear) * nonLinearDepth); 
 }
 
 float CrossBilateralWeight(float2 uv, float r, float d0, inout float totalWeight)
 {
-	float c = SourceBuffer.SampleLevel(PointClampSampler, uv, 0);
+	float c = SourceBuffer.Sample(PointClampSampler, uv);
 	
-	float d = FetchLinearDepth(uv) - d0;
+	float ddiff = FetchLinearDepth(uv) - d0;
 
-	float w =  exp(-r*r*BlurFalloff - d*d*Sharpness);
+	float w =  exp(-r*r*BlurFalloff - ddiff*ddiff*BlurFalloff);
 
 	totalWeight += w;
 
@@ -44,8 +43,6 @@ float BlurX(in float4 iPos : SV_Position, in float2 iTex : TEXCOORD0) : SV_Targe
 	float b = 0;
 
     float centerDepth = FetchLinearDepth(iTex);
-
-	float c = SourceBuffer.SampleLevel(PointClampSampler, iTex, 0);
 
 	for(float r = -BlurRadius; r <= BlurRadius; ++r)
 	{
