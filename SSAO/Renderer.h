@@ -39,14 +39,15 @@ enum AmbientOcclusionTechnique
 {
 	AO_Cryteck = 0,
 	AO_HBAO,
+	AO_Unreal4,
 	AO_Alchemy
 };
 
-class SSAO
+class Renderer
 {
 public:
-	SSAO(ID3D11Device* d3dDevice);
-	~SSAO(void);
+	Renderer(ID3D11Device* d3dDevice);
+	~Renderer(void);
 
 	void OnD3D11ResizedSwapChain(ID3D11Device* d3dDevice, const DXGI_SURFACE_DESC* backBufferDesc);
 
@@ -66,11 +67,13 @@ private:
 
 	void ComputeShading(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
-	void RenderSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+	void RenderCryteckSSAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 	void RenderHBAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
 	void RenderAlchemyAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+
+	void RenderUnreal4AO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 	
 	void DrawPointLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
@@ -172,6 +175,7 @@ private:
 	shared_ptr<PixelShader> mSSAOCrytekPS;
 	shared_ptr<PixelShader> mHBAOPS;
 	shared_ptr<PixelShader> mAlchemyAOPS;
+	shared_ptr<PixelShader> mUnreal4AOPS;
 
 	shared_ptr<PixelShader> mBlurXPS;
 	shared_ptr<PixelShader> mBlurYPS;

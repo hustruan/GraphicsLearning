@@ -379,17 +379,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="LightAnimation.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Utility.cpp" />
     <ClInclude Include="BoundingVolume.h" />
     <ClInclude Include="LightAnimation.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderContanst.h" />
-    <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Utility.h" />
     <None Include="DXUT\Optional\directx.ico" />
@@ -416,7 +416,9 @@
     <ClCompile Include="DXUT\Optional\SDKmesh.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
     <None Include="Media\Shaders\AlchemyAO.hlsl" />
+    <None Include="Media\Shaders\AOConstant.hlsl" />
     <None Include="Media\Shaders\CrossBilateralFilter.hlsl" />
+    <None Include="Media\Shaders\CryteckSSAO.hlsl" />
     <None Include="Media\Shaders\DebugVolumePS.hlsl" />
     <None Include="Media\Shaders\DebugVolumeVS.hlsl" />
     <None Include="Media\Shaders\DeferredShadingClassicPS.hlsl" />
@@ -433,6 +435,7 @@
     <None Include="Media\Shaders\PerFrameConstant.hlsl" />
     <None Include="Media\Shaders\SSAO.hlsl" />
     <None Include="Media\Shaders\SSVO.hlsl" />
+    <None Include="Media\Shaders\Unreal4AO.hlsl" />
     <None Include="Media\Shaders\Utility.hlsl" />
   </ItemGroup>
   <ItemGroup>

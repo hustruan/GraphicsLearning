@@ -133,15 +133,24 @@
     <None Include="Media\Shaders\PerFrameConstant.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Media\Shaders\CryteckSSAO.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\AOConstant.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\Unreal4AO.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="LightAnimation.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Utility.cpp" />
+    <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
@@ -150,7 +159,6 @@
     <ResourceCompile Include="SSAO.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
-    <ClInclude Include="SSAO.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="LightAnimation.h" />
@@ -158,6 +166,7 @@
     <ClInclude Include="Utility.h" />
     <ClInclude Include="ShaderContanst.h" />
     <ClInclude Include="BoundingVolume.h" />
+    <ClInclude Include="Renderer.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

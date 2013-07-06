@@ -1,16 +1,9 @@
 #ifndef SSAO_HLSL
 #define SSAO_HLSL
 
+#include "PerFrameConstant.hlsl"
 #include "FullScreenTriangle.hlsl"
 #include "Utility.hlsl"
-
-cbuffer PerFrameConstant : register(b0)
-{
-	float4x4 Projection;
-	float4x4 InvProj;
-	float2   CameraNearFar;
-	bool     UseSSAO;
-};
 
 cbuffer SSAOParams : register(b1)
 {
@@ -20,12 +13,12 @@ cbuffer SSAOParams : register(b1)
 	float DeltaSacle : packoffset(c0.w);
 };
 
-SamplerState PointSampler : register(s0);
-SamplerState PointWrapSampler : register(s1);
+SamplerState PointClampSampler     : register(s0);
+SamplerState PointWrapSampler      : register(s1);
 
-Texture2D GBuffer0    : register(t0);           // Normal + Shininess
-Texture2D NoiseTexture : register(t1);          // 4x4 texture containing 16 random vectors
-Texture2D DepthBuffer : register(t2);           // ZBuffer
+Texture2D GBuffer0      : register(t0);           // Normal + Shininess
+Texture2D NoiseTexture  : register(t1);          // 4x4 texture containing 16 random vectors
+Texture2D DepthBuffer   : register(t2);           // ZBuffer
 
 float CryteckSSAO(float2 tex)
 {
@@ -35,7 +28,7 @@ float CryteckSSAO(float2 tex)
 	float3 random = 2.0f * NoiseTexture.Sample(PointWrapSampler, tex * ScreenSize / 4).rgb - 1.0f;
 
 	// Convert non-linear depth to view space linear depth
-	float fSceneDepthP = LinearizeDepth( DepthBuffer.Sample(PointSampler, tex).x, CameraNearFar.x, CameraNearFar.y );
+	float fSceneDepthP = LinearizeDepth( DepthBuffer.Sample(PointClampSampler, tex).x, CameraNearFar.x, CameraNearFar.y );
 
 	// Parameters affecting offset points numbers and distribution
 	const int NumSamples = 16;
@@ -59,7 +52,7 @@ float CryteckSSAO(float2 tex)
 		// shift coordinates by offset vector (range convert and width depth value)
 		vSamplePos += float3(vRotatedOffset.xy, vRotatedOffset.z * fSceneDepthP * 2);
 	
-		float fSceneDepthS = LinearizeDepth( DepthBuffer.Sample(PointSampler, vSamplePos.xy).x, CameraNearFar.x, CameraNearFar.y );
+		float fSceneDepthS = LinearizeDepth( DepthBuffer.Sample(PointClampSampler, vSamplePos.xy).x, CameraNearFar.x, CameraNearFar.y );
 
 		// check if depth of both pixels are close enough and sampling point should affect out center pixel
 		float fRangeIsValid = saturate( (fSceneDepthP - fSceneDepthS) / fSceneDepthS );
@@ -91,7 +84,7 @@ float GPWikiSSAO(float2 tex)
 
    float3 random = 2.0 * NoiseTexture.Sample(PointWrapSampler, tex * ScreenSize / 4).rgb - 1.0;
 
-   float viewDepth = LinearizeDepth( DepthBuffer.Sample(PointSampler, tex).x, CameraNearFar.x, CameraNearFar.y );
+   float viewDepth = LinearizeDepth( DepthBuffer.Sample(PointClampSampler, tex).x, CameraNearFar.x, CameraNearFar.y );
    float pixelDepth = viewDepth / CameraNearFar.y;
 
    float3 kernelScale = float3(Radius / viewDepth, Radius / viewDepth, Radius / CameraNearFar.y);
@@ -100,7 +93,7 @@ float GPWikiSSAO(float2 tex)
    for(int i = 0; i < NumSamples; ++i)
    {
        float3 rotatedKernel = reflect( SampleKernel[i], random ) * kernelScale;
-	   float sampleDepth = LinearizeDepth( DepthBuffer.Sample(PointSampler, tex + rotatedKernel.xy).x, CameraNearFar.x, CameraNearFar.y ) / CameraNearFar.y;
+	   float sampleDepth = LinearizeDepth( DepthBuffer.Sample(PointClampSampler, tex + rotatedKernel.xy).x, CameraNearFar.x, CameraNearFar.y ) / CameraNearFar.y;
 
 	   float delta = max( sampleDepth - pixelDepth + rotatedKernel.z, 0.0f );
 	   float range = abs( delta ) / ( kernelScale.z * NormRange );
