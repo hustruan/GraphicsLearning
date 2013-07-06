@@ -1,14 +1,8 @@
 #ifndef DeferredRendering_HLSL
 #define DeferredRendering_HLSL
 
+#include "PerFrameConstant.hlsl"
 #include "Utility.hlsl"
-
-cbuffer PerFrameConstant : register(b0)
-{
-	float4x4 Projection;
-	float4x4 InvProj;
-	float4   CameraNearFar;
-};
 
 cbuffer Light : register(b1)
 {
@@ -24,6 +18,7 @@ SamplerState PointSampler : register(s0);
 Texture2D GBuffer0    : register(t0);           // Normal + Shininess
 Texture2D GBuffer1    : register(t1);           // Diffuse Albedo + Specular 
 Texture2D DepthBuffer : register(t2);
+Texture2D AOBuffer    : register(t3);   
 
 float4 DeferredRenderingPS(
 #if defined(DirectionalLight)       
@@ -78,24 +73,32 @@ float4 DeferredRenderingPS(
 
 	float nDotl = dot(N, L);	
 
+	float4 tap1 = GBuffer1.Sample(PointSampler, tex);
+
+	// Get Diffuse Albedo and Specular
+	float3 diffuseAlbedo = tap1.rgb;
+	float3 specularAlbedo = tap1.aaa;
+
 	if(nDotl > 0)
 	{
 		float3 V = normalize(-positionVS);
 		float3 H = normalize(L + V);
 
-		float4 tap1 = GBuffer1.Sample(PointSampler, tex);
-
-		// Get Diffuse Albedo and Specular
-		float3 diffuseAlbedo = tap1.rgb;
-		float3 specularAlbedo = tap1.aaa;
-
 		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
 		final *= LightColor * nDotl * attenuation;
+
+		
 	}
+
+	float ao = 1.0;
+	if(UseSSAO)
+		ao = AOBuffer.Sample(PointSampler, tex).x;
+	
+	final = final + float3(0.2, 0.2, 0.2) * ao * diffuseAlbedo;
 
 	//Additively blend is not free, discard pixel not contributing any light	  
 	if(dot(final.rgb, 1.0) == 0) discard;
-
+	
 	return float4(final, 1.0f);
 }
 

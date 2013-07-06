@@ -16,7 +16,7 @@ cbuffer AmbientOcclusionConstant : register(b0)
 	float2 InvAOResolution;
 
 	float2 FocalLen;
-	float2 ProjDepthScale;
+	float2 ClipInfo;
 
 	float Radius;
 	float RadiusSquared;
@@ -83,7 +83,7 @@ float3 FetchEyePos(float2 uv)
 	//const float ProjM43 = ProjScale.y;
 	//float eyeZ = ProjM43 / (DepthBuffer.SampleLevel(PointClampSampler, uv, 0) - ProjM33);
 
-	float eyeZ = ProjDepthScale.y / (DepthBuffer.SampleLevel(PointClampSampler, uv, 0) - ProjDepthScale.x);
+	float eyeZ = ClipInfo.y / (DepthBuffer.SampleLevel(PointClampSampler, uv, 0) - ClipInfo.x);
 
 	// Convet UV to Clip Space
 	uv =  uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f);
@@ -196,7 +196,6 @@ float4 HBAO(in float4 iPos : SV_Position, in float2 iTex : TEXCOORD0) :SV_Target
 	float3 P = FetchEyePos(iTex);
 
 	// (cos(alpha),sin(alpha),jitter)
-    //float3 rand = RandomTexture.Sample(PointWrapSampler, iPos.xy / RANDOM_TEXTURE_WIDTH);
 	float3 rand = RandomTexture.Sample(PointWrapSampler, iTex * AOResolution / RANDOM_TEXTURE_WIDTH);
 
 	float2 uvRadius = 0.5 * Radius * FocalLen / P.z;

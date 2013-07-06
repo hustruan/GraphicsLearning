@@ -82,9 +82,6 @@
     <None Include="Media\Shaders\GBuffer.hlsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Media\Shaders\Rendering.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Media\Shaders\FullScreenTriangle.hlsl">
       <Filter>Shaders</Filter>
     </None>
@@ -125,6 +122,15 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Media\Shaders\CrossBilateralFilter.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\SSVO.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\AlchemyAO.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Media\Shaders\PerFrameConstant.hlsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

@@ -415,6 +415,7 @@
     <ClCompile Include="DXUT\Optional\DXUTsettingsdlg.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmesh.cpp" />
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp" />
+    <None Include="Media\Shaders\AlchemyAO.hlsl" />
     <None Include="Media\Shaders\CrossBilateralFilter.hlsl" />
     <None Include="Media\Shaders\DebugVolumePS.hlsl" />
     <None Include="Media\Shaders\DebugVolumeVS.hlsl" />
@@ -429,8 +430,9 @@
     <None Include="Media\Shaders\GBuffer.hlsl" />
     <None Include="Media\Shaders\GPUScreenQuad.hlsl" />
     <None Include="Media\Shaders\HBAO.hlsl" />
-    <None Include="Media\Shaders\Rendering.hlsl" />
+    <None Include="Media\Shaders\PerFrameConstant.hlsl" />
     <None Include="Media\Shaders\SSAO.hlsl" />
+    <None Include="Media\Shaders\SSVO.hlsl" />
     <None Include="Media\Shaders\Utility.hlsl" />
   </ItemGroup>
   <ItemGroup>

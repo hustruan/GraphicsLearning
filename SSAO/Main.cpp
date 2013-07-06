@@ -59,6 +59,8 @@ enum SceneSelection
 #define IDC_STATIC_BLUR_SHARPNESS		16
 #define IDC_SLIDER_BLUR_SHARPNESS       17
 #define IDC_COMBOBOX_AO					18 
+#define IDC_USE_AO                      19
+#define IDC_SHOW_AO                     20
 
 void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext );
 
@@ -173,6 +175,18 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 				
 				g_HbaoHUD.SetVisible(g_SSAO->mAOTechnique == AO_HBAO);
 			}
+		}
+		break;
+	case IDC_USE_AO:
+		{
+			if(g_SSAO) 
+				g_SSAO->mUseSSAO = g_HUD.GetCheckBox(IDC_USE_AO)->GetChecked();
+		}
+		break;
+	case IDC_SHOW_AO:
+		{
+			if(g_SSAO) 
+				g_SSAO->mShowAO = g_HUD.GetCheckBox(IDC_SHOW_AO)->GetChecked();
 		}
 		break;
 	}
@@ -489,7 +503,7 @@ void InitScene(ID3D11Device* d3dDevice)
 	case Scene_Power_Plant: 
 		{
 			g_LightAnimation->LoadLights(".\\Media\\Animation.txt");
-			g_LightAnimation->RandonPointLight(1000);
+			g_LightAnimation->RandonPointLight(100);
 
 			sceneScaling = 1.0f;
 			D3DXMatrixScaling(&world, sceneScaling, sceneScaling, sceneScaling);
@@ -590,13 +604,21 @@ void InitUI()
 
 	g_HUD.AddCheckBox(IDC_DEFERRED_LIGHTING, L"Light Pre-Pass", 0, iY += 36, width, 23, 0, false, false, &pCheck);
 	pCheck->SetChecked(false);
+
 	g_HUD.AddCheckBox(IDC_LIGHT_ANIMATION, L"Light Animation", 0, iY += 36, width, 23, 0, false, false, &pCheck);
 	pCheck->SetChecked(true);
 
-	iY +=36;
+	g_HUD.AddCheckBox(IDC_USE_AO, L"Use SSAO", 0, iY += 36, width, 23, 0, false, false, &pCheck);
+	pCheck->SetChecked(true);
+
+	g_HUD.AddCheckBox(IDC_SHOW_AO, L"Show SSAO", 0, iY += 36, width, 23, 0, false, false, &pCheck);
+	pCheck->SetChecked(false);
+
+	iY +=16;
 	g_HUD.AddComboBox(IDC_COMBOBOX_AO, 0, iY +=36, width, 23, 0, false, &pCombo);
 	pCombo->AddItem(L"Cryteck", ULongToPtr(AO_Cryteck));
 	pCombo->AddItem(L"HBAO", ULongToPtr(AO_HBAO));
+	pCombo->AddItem(L"Alchemy", ULongToPtr(AO_Alchemy));
 
 	g_HUD.SetSize(width, iY);
 	
@@ -622,7 +644,7 @@ void InitUI()
 		g_HbaoHUD.AddStatic( IDC_STATIC_BLUR_SHARPNESS, szTemp, 0, iYY += 36, width, 23);
 		g_HbaoHUD.AddSlider(IDC_SLIDER_BLUR_SHARPNESS, 0,  iYY += 23, width, 23, 0, 32, 18, false);
 
-		g_HbaoHUD.SetSize(width, iYY+=23);
+		g_HbaoHUD.SetSize(width, iYY);
 
 		g_HbaoHUD.SetVisible(false);
 	}

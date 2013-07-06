@@ -7,8 +7,9 @@
 cbuffer PerFrameConstant : register(b0)
 {
 	float4x4 Projection;
-	float4x4 InvProjection;
-	float4   CameraNearFar;
+	float4x4 InvProj;
+	float2   CameraNearFar;
+	bool     UseSSAO;
 };
 
 cbuffer SSAOParams : register(b1)
@@ -38,7 +39,7 @@ float CryteckSSAO(float2 tex)
 
 	// Parameters affecting offset points numbers and distribution
 	const int NumSamples = 16;
-	float offsetScale = CameraNearFar.z;
+	float offsetScale = 1.0;
 	float offsetScaleStep = 1 + 2.4 / NumSamples;
 
 	float accessibility = 0;

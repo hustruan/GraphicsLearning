@@ -1,25 +1,15 @@
 #ifndef DeferredRendering_HLSL
 #define DeferredRendering_HLSL
 
-#if defined(DirectionalLight)
-
-cbuffer PerFrameConstant : register(b0)
-{
-	float4x4 Projection;
-	float4x4 InvProj;
-	float4   CameraNearFar;
-};
-
-#elif defined(PointLight) || defined(SpotLight)   
-
 cbuffer PerOjectConstant : register(b0)
 {
 	float4x4 WorldView;
 	float4x4 WorldViewProj;
 };
 
+#if defined(DirectionalLight)	
+	#define InvProj	WorldView // if directional light, WorldView store InvProjection
 #endif
-
 
 void DeferredRenderingVS(                   
 #if defined(DirectionalLight)

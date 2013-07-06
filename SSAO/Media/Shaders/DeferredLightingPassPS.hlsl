@@ -1,14 +1,8 @@
 #ifndef DeferredLighting_HLSL
 #define DeferredLighting_HLSL
 
+#include "PerFrameConstant.hlsl"
 #include "Utility.hlsl"
-
-cbuffer PerFrameConstant : register(b0)
-{
-	float4x4 Projection;
-	float4x4 InvProjection;
-	float4   CameraNearFar;
-};
 
 cbuffer Light : register(b1)
 {
@@ -33,8 +27,7 @@ SamplerState PointSampler : register(s0);
  */
 
 Texture2D GBuffer0              : register(t0);           // Normal + Shininess
-Texture2D GBuffer1              : register(t1);
-Texture2D DepthBuffer           : register(t2);
+Texture2D DepthBuffer           : register(t1);           // Depth Buffer
 
 // deferred lighting pass
 float4 DeferredLightingPS(

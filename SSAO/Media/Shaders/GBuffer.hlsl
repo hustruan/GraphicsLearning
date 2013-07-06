@@ -7,8 +7,8 @@ cbuffer PerOjectConstant : register(b0)
 	float4x4 WorldViewProj;
 };
 
-static const float Shininess = 80.0f;
-static const float Specular = 0.5f;
+static const float Shininess = 100.0f;
+static const float Specular = 0.2f;
 
 Texture2D BestFitTexture : register(t0); 
 Texture2D DiffuseTexture : register(t1);

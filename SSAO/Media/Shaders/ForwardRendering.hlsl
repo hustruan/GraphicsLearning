@@ -20,6 +20,9 @@ cbuffer Light : register(b0)
 Texture2D DiffuseTexture : register(t0);
 SamplerState DiffuseSampler : register(s0);
 
+static const float Shininess = 100.0f;
+static const float3 SpecularAlbedo = float3(0.2, 0.2, 0.2);
+
 struct ForwardVSIn
 {
     float3 iPos       : POSITION;
@@ -51,25 +54,23 @@ float4 ForwardPS( ForwardVSOut input ) : SV_Target0
 {
 	float3 final = 0;
 
-	const float shininess = 80.0f;
-	const float3 specularAlbedo = float3(0.5f, 0.5f, 0.5f);
-
 	float3 N = normalize(input.oNormal);
 	float3 L = normalize(-LightDirection);
 	
 	float nDotl = dot(L, N);
+
+	float3 diffuseAlbedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
 
 	if(nDotl > 0)
 	{	
 		float3 V = normalize(-input.oPosVS);
 		float3 H = normalize(L + V);
 		
-	    float3 diffuseAlbedo = DiffuseTexture.Sample(DiffuseSampler, input.oTex);
-
-		final = diffuseAlbedo + CalculateFresnel(specularAlbedo, L, H) * CalculateSpecularNormalized(N, H, shininess);
+		final = diffuseAlbedo + CalculateFresnel(SpecularAlbedo, L, H) * CalculateSpecularNormalized(N, H, Shininess);
 		final *= LightColor * nDotl;
 	}
 
+	final += diffuseAlbedo * float3(0.2, 0.2, 0.2);
 	
 	return float4(final, 1.0);
 }

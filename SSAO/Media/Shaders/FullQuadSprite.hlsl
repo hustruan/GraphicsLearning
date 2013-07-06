@@ -12,4 +12,10 @@ float4 FullQuadSpritePS(FullScreenTriangleVSOut input) : SV_Target0
 	return float4(albedo.rgb, 1.0);
 }
 
+float4 FullQuadSpriteAOPS(FullScreenTriangleVSOut input) : SV_Target0
+{
+	float4 ao = SpriteTex.Sample(PointSampler, input.oTex).x;
+	return float4(ao.xxx, 1.0);
+}
+
 #endif

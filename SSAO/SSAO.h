@@ -38,7 +38,8 @@ enum LightingMethod
 enum AmbientOcclusionTechnique
 {
 	AO_Cryteck = 0,
-	AO_HBAO
+	AO_HBAO,
+	AO_Alchemy
 };
 
 class SSAO
@@ -69,6 +70,8 @@ private:
 
 	void RenderHBAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
 
+	void RenderAlchemyAO(ID3D11DeviceContext* d3dDeviceContext, const CFirstPersonCamera& viewerCamera, const D3D11_VIEWPORT* viewport);
+	
 	void DrawPointLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
 
 	void DrawSpotLight(ID3D11DeviceContext* d3dDeviceContext, const LightAnimation& lights, const CFirstPersonCamera& viewerCamera);
@@ -95,6 +98,8 @@ private:
 public:
 
 	bool mLightPrePass;
+	bool mUseSSAO;
+	bool mShowAO;
 
 	LightingMethod mLightingMethod;
 	LightCullTechnique mCullTechnique;
@@ -166,8 +171,13 @@ private:
 	shared_ptr<VertexShader> mFullScreenTriangleVS;
 	shared_ptr<PixelShader> mSSAOCrytekPS;
 	shared_ptr<PixelShader> mHBAOPS;
+	shared_ptr<PixelShader> mAlchemyAOPS;
+
 	shared_ptr<PixelShader> mBlurXPS;
 	shared_ptr<PixelShader> mBlurYPS;
+
+	shared_ptr<PixelShader> mFullQuadSprite;
+	shared_ptr<PixelShader> mFullQuadSpriteAO;
 
 	ID3D11Texture2D* mHBAORandomTexture;
 	ID3D11ShaderResourceView* mHBAORandomSRV;
@@ -193,8 +203,6 @@ private:
 	ID3D11BlendState* mLightingBlendState;
 
 	CDXUTSDKMesh* mPointLightProxy;
-	CDXUTSDKMesh* mSpotLightProxy;
-
-	shared_ptr<PixelShader> mFullQuadSprite;
+	CDXUTSDKMesh* mSpotLightProxy;	
 };
 

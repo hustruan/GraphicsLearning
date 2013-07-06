@@ -1,14 +1,8 @@
 #ifndef GPUScreenQuad_HLSL
 #define GPUScreenQuad_HLSL
 
+#include "PerFrameConstant.hlsl"
 #include "Utility.hlsl"
-
-cbuffer PerFrameConstant : register(b0)
-{
-	float4x4 Projection;
-	float4x4 InvProj;
-	float4   CameraNearFar;
-};
 
 cbuffer Light : register(b1)
 {

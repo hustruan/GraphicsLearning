@@ -1,6 +1,7 @@
 #ifndef DeferredLighting_HLSL
 #define DeferredLighting_HLSL
 
+#include "PerFrameConstant.hlsl"
 #include "Utility.hlsl"
 
 SamplerState PointSampler : register(s0);
@@ -19,6 +20,7 @@ SamplerState PointSampler : register(s0);
 Texture2D GBuffer0              : register(t0);           // Normal + Shininess
 Texture2D GBuffer1              : register(t1);
 Texture2D LightAccumulateBuffer : register(t2);
+Texture2D AOBuffer              : register(t3);
 
 // Deferred shading pass
 float4 DeferredShadingPS(in float2 iTex : TEXCOORD0, in float3 iViewRay : TEXCOORD1) : SV_Target0
@@ -47,6 +49,12 @@ float4 DeferredShadingPS(in float2 iTex : TEXCOORD0, in float3 iViewRay : TEXCOO
 	float3 fresnelTerm = CalculateAmbiemtFresnel(specularAlbedo, N, V);
 	
 	final =  diffueLight * diffuseAlbedo + ((specularPower + 2.0f) / 8.0f) * fresnelTerm * specularLight;
+
+	float ao = 1.0;
+	if(UseSSAO)
+		ao = AOBuffer.Sample(PointSampler, iTex).x;
+
+	final = final + float3(0.2, 0.2, 0.2) * ao * diffuseAlbedo;
 
 	return float4(final, 1.0);
 }

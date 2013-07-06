@@ -30,7 +30,7 @@ float CrossBilateralWeight(float2 uv, float r, float d0, inout float totalWeight
 	
 	float ddiff = FetchLinearDepth(uv) - d0;
 
-	float w =  exp(-r*r*BlurFalloff - ddiff*ddiff*BlurFalloff);
+	float w =  exp(-r*r*BlurFalloff - ddiff*ddiff*Sharpness);
 
 	totalWeight += w;
 
